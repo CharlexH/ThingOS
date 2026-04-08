@@ -1,0 +1,172 @@
+#app,
+.app-shell {
+  height: 100%;
+  width: 100%;
+}
+
+#app {
+  border-radius: 24px;
+  overflow: hidden;
+  position: relative;
+}
+
+.app-shell {
+  background: #000;
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  grid-template-rows: 1fr 88px;
+  gap: 24px;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 24px;
+  position: relative;
+}
+
+.spotify-background {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.spotify-background-gradient,
+.spotify-background-image,
+.spotify-background-overlay {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  position: absolute;
+}
+
+.spotify-background-image {
+  filter: blur(36px) saturate(1.18) brightness(0.42);
+  height: calc(100% + 48px);
+  left: -24px;
+  object-fit: cover;
+  opacity: 0;
+  top: -24px;
+  transform: scale(1.16);
+  transition: opacity 320ms ease;
+  width: calc(100% + 48px);
+}
+
+.spotify-background-image-primary,
+.spotify-background-image-visible {
+  opacity: 1;
+}
+
+.spotify-background-gradient {
+  opacity: 0.84;
+}
+
+.spotify-background-overlay {
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.52) 100%),
+    rgba(0, 0, 0, 0.26);
+}
+
+.artwork-panel {
+  background: transparent;
+  border-radius: 16px;
+  grid-column: 1;
+  grid-row: 1;
+  height: 360px;
+  overflow: hidden;
+  position: relative;
+  width: 360px;
+}
+
+.info-panel {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.info-panel-main,
+.info-panel-footer {
+  display: flex;
+  flex-direction: column;
+}
+
+.info-panel-footer {
+}
+
+.info-panel-footer > * + * {
+  margin-top: 8px;
+}
+
+.artwork-panel,
+.info-panel,
+.progress-root {
+  position: relative;
+  z-index: 1;
+}
+
+.progress-root {
+  grid-column: 1 / span 2;
+  grid-row: 2;
+  min-width: 0;
+  width: 100%;
+}
+
+.home-screen {
+  align-items: center;
+  background: #000;
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  width: 100%;
+}
+
+.settings-screen {
+  background: #000;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 24px;
+  width: 100%;
+}
+
+.settings-header {
+  align-items: center;
+  display: flex;
+  min-height: 40px;
+}
+
+.settings-title {
+  color: #fff;
+  flex: 1 1 auto;
+  font-size: 32px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.settings-status {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 15px;
+  margin-top: 8px;
+  min-height: 20px;
+}
+
+.settings-scroll {
+  flex: 1 1 auto;
+  margin-top: 16px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.settings-content {
+  padding-bottom: 24px;
+}
+
+#app > [hidden] {
+  display: none !important;
+}
