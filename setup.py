@@ -6,9 +6,9 @@ OPTIONS = {
     "argv_emulation": False,
     "packages": ["server", "rumps", "websockets"],
     "plist": {
-        "CFBundleName": "ThingPlayer",
-        "CFBundleDisplayName": "ThingPlayer",
-        "CFBundleIdentifier": "com.charlex.thingplayer",
+        "CFBundleName": "ThingOS",
+        "CFBundleDisplayName": "ThingOS",
+        "CFBundleIdentifier": "com.charlex.thingos",
         "CFBundleShortVersionString": "0.1.0",
         "CFBundleVersion": "1",
         "LSUIElement": True,
@@ -18,7 +18,7 @@ OPTIONS = {
 
 setup(
     app=APP,
-    name="ThingPlayer",
+    name="ThingOS",
     options={"py2app": OPTIONS},
     setup_requires=["py2app"],
 )

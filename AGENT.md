@@ -1,10 +1,10 @@
-# ThingPlayer Agent Guide
+# ThingOS Agent Guide
 
 This file is the handoff document for any future agent working in this repo.
 
 ## What This Project Is
 
-ThingPlayer turns a Spotify Car Thing into a Spotify remote with a simple home clock page and a settings panel.
+ThingOS turns a Spotify Car Thing into a compact console with a Spotify player, a Pomodoro timer, and a MAGI-style harness surface.
 
 Current high-level behavior:
 - `preset1` switches to the Spotify page.
@@ -22,13 +22,13 @@ Current high-level behavior:
 **Preferred: macOS menubar app (`.app` bundle)**
 
 ```bash
-open /Applications/ThingPlayer.app
+open /Applications/ThingOS.app
 ```
 
 Or build and install from source:
 ```bash
 source .venv/bin/activate && python setup.py py2app
-cp -R dist/ThingPlayer.app /Applications/
+cp -R dist/ThingOS.app /Applications/
 ```
 
 The `.app` starts a menubar-only process (no Dock icon) that:

@@ -62,7 +62,7 @@ class ArtworkProxyServer:
 
                 cached = cache.get(url)
                 if cached is None:
-                    request = Request(url, headers={"User-Agent": "ThingPlayer/0.1"})
+                    request = Request(url, headers={"User-Agent": "ThingOS/0.1"})
                     with urlopen(request, timeout=5) as response:
                         payload = response.read()
                         content_type = response.headers.get_content_type()

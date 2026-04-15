@@ -15,7 +15,7 @@ export function renderIndexHtml(jsPath, cssPath) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ThingPlayer</title>
+    <title>ThingOS</title>
     <link rel="stylesheet" href="./${cssPath}">
   </head>
   <body>

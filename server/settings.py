@@ -28,7 +28,7 @@ class SettingsActionResult:
         return {"ok": self.ok, "action": self.action, "message": self.message}
 
 
-class ThingPlayerSettingsService:
+class ThingOSSettingsService:
     def __init__(
         self,
         run: CommandRunner | None = None,

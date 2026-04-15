@@ -31,7 +31,7 @@ export function applyIncomingMessage(
   }
 }
 
-export class ThingPlayerSocket {
+export class ThingOSSocket {
   private backoffMs: number;
   private readonly maxBackoffMs: number;
   private readonly store: PlaybackStore;

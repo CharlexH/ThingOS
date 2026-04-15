@@ -14,4 +14,4 @@ cd "${ROOT_DIR}"
 rm -rf build dist
 "${PYTHON_BIN}" setup.py py2app
 
-echo "Built: ${ROOT_DIR}/dist/ThingPlayer.app"
+echo "Built: ${ROOT_DIR}/dist/ThingOS.app"
