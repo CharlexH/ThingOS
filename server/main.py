@@ -4,14 +4,14 @@ import asyncio
 
 from .artwork_proxy import ArtworkProxyServer
 from .spotify import SpotifyController
-from .ws_server import ThingPlayerServer
+from .ws_server import ThingOSServer
 
 
 async def _run() -> None:
     artwork_server = ArtworkProxyServer()
     artwork_server.start()
 
-    ws_server = ThingPlayerServer(SpotifyController())
+    ws_server = ThingOSServer(SpotifyController())
     await ws_server.start()
 
 

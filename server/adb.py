@@ -64,7 +64,7 @@ def _run_adb(command: List[str]) -> subprocess.CompletedProcess[str]:
 
 
 def main(argv: Iterable[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="ThingPlayer adb helpers")
+    parser = argparse.ArgumentParser(description="ThingOS adb helpers")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     wait_parser = subparsers.add_parser("wait", help="Wait until an adb device is online")

@@ -3,7 +3,7 @@ import json
 import unittest
 from unittest.mock import AsyncMock, patch
 
-from server.ws_server import ThingPlayerServer
+from server.ws_server import ThingOSServer
 
 
 class _FakeSpotify:
@@ -58,9 +58,9 @@ class _FakeSettings:
         return None
 
 
-class ThingPlayerServerButtonTests(unittest.IsolatedAsyncioTestCase):
+class ThingOSServerButtonTests(unittest.IsolatedAsyncioTestCase):
     async def test_preset_buttons_only_broadcast_events(self) -> None:
-        server = ThingPlayerServer(_FakeSpotify())
+        server = ThingOSServer(_FakeSpotify())
         server._broadcast = AsyncMock()  # type: ignore[method-assign]
         server._handle_command = AsyncMock()  # type: ignore[method-assign]
 
@@ -74,8 +74,8 @@ class ThingPlayerServerButtonTests(unittest.IsolatedAsyncioTestCase):
         server._broadcast.assert_awaited_once_with({"type": "button", "data": {"button": "preset2"}})
         server._handle_command.assert_not_awaited()
 
-    async def test_knob_press_still_triggers_playpause(self) -> None:
-        server = ThingPlayerServer(_FakeSpotify())
+    async def test_knob_press_only_broadcasts_the_button_event(self) -> None:
+        server = ThingOSServer(_FakeSpotify())
         server._broadcast = AsyncMock()  # type: ignore[method-assign]
         server._handle_command = AsyncMock()  # type: ignore[method-assign]
 
@@ -87,12 +87,12 @@ class ThingPlayerServerButtonTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(0)
 
         server._broadcast.assert_awaited_once_with({"type": "button", "data": {"button": "knob_press"}})
-        server._handle_command.assert_awaited_once_with({"action": "playpause"})
+        server._handle_command.assert_not_awaited()
 
 
-class ThingPlayerServerSettingsTests(unittest.IsolatedAsyncioTestCase):
+class ThingOSServerSettingsTests(unittest.IsolatedAsyncioTestCase):
     async def test_settings_get_sends_current_settings_state(self) -> None:
-        server = ThingPlayerServer(_FakeSpotify(), settings=_FakeSettings())
+        server = ThingOSServer(_FakeSpotify(), settings=_FakeSettings())
 
         class _FakeWebSocket:
             def __init__(self):
@@ -111,7 +111,7 @@ class ThingPlayerServerSettingsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload["data"]["display"]["brightness"], 120)
 
     async def test_settings_action_returns_result_and_refreshed_state(self) -> None:
-        server = ThingPlayerServer(_FakeSpotify(), settings=_FakeSettings())
+        server = ThingOSServer(_FakeSpotify(), settings=_FakeSettings())
 
         class _FakeWebSocket:
             def __init__(self):

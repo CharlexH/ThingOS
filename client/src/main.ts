@@ -6,10 +6,10 @@ import { mapHardwareButtonToApp } from "./app-switching";
 import { bindInputHandlers } from "./input";
 import { createPlaybackStore } from "./state";
 import { createRenderer } from "./ui/renderer";
-import { ThingPlayerSocket } from "./ws-client";
+import { ThingOSSocket } from "./ws-client";
 
 var store = createPlaybackStore();
-var socket = new ThingPlayerSocket(store, "ws://127.0.0.1:8765");
+var socket = new ThingOSSocket(store, "ws://127.0.0.1:8765");
 var renderer = createRenderer(document, store, sendCommand, {
   requestSettingsState: function (): void {
     socket.sendSettingsGet();

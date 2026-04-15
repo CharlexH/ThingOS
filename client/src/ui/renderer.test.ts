@@ -258,7 +258,7 @@ describe("createRenderer", () => {
   });
 
   it("uses the document window timer host instead of relying on globalThis", () => {
-    const localDocument = document.implementation.createHTMLDocument("ThingPlayer");
+    const localDocument = document.implementation.createHTMLDocument("ThingOS");
     const app = localDocument.createElement("div");
     const timerHost = {
       setInterval: vi.fn(() => 1)
@@ -290,7 +290,7 @@ describe("createRenderer", () => {
   });
 
   it("advances the progress bar and elapsed label between server deltas", () => {
-    const localDocument = document.implementation.createHTMLDocument("ThingPlayer");
+    const localDocument = document.implementation.createHTMLDocument("ThingOS");
     const app = localDocument.createElement("div");
     let labelTick: (() => void) | undefined;
     let frameTick: ((timestamp?: number) => void) | undefined;

@@ -1,4 +1,4 @@
-# ThingPlayer Pitfalls & Lessons Learned
+# ThingOS Pitfalls & Lessons Learned
 
 Accumulated from real debugging sessions on the Car Thing hardware.
 
@@ -192,7 +192,7 @@ The `InputBridge` holds a persistent `adb shell cat /dev/input/event0` pipe. Run
 
 **Symptom:** device appears in `adb devices`, then disappears after a few seconds. `adb reverse --list` returns `protocol fault`. Eventually `adb devices` returns empty.
 
-**Root cause in ThingPlayer:** `agent.py` originally polled `adb devices` + `adb reverse` × 2 every 3 seconds in `_on_tick`. Combined with the InputBridge pipe, this created 3+ concurrent ADB operations per tick cycle.
+**Root cause in ThingOS:** `agent.py` originally polled `adb devices` + `adb reverse` × 2 every 3 seconds in `_on_tick`. Combined with the InputBridge pipe, this created 3+ concurrent ADB operations per tick cycle.
 
 **Fix:** Remove all ADB polling from `_on_tick`. Instead, detect device presence via InputBridge's connection state. Only run `adb reverse` when InputBridge reports a successful reconnect, with a 2-second delay and 1-second gap between each reverse command to avoid contention.
 

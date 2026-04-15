@@ -10,22 +10,22 @@ import websockets
 from websockets.server import WebSocketServerProtocol
 
 from .input_bridge import InputBridge
-from .settings import ThingPlayerSettingsService
+from .settings import ThingOSSettingsService
 from .spotify import SpotifyController, compute_delta, serialize_state_message
 from .types import EMPTY_STATE, PlaybackState
 
 
-class ThingPlayerServer:
+class ThingOSServer:
     def __init__(
         self,
         spotify: SpotifyController,
-        settings: ThingPlayerSettingsService | None = None,
+        settings: ThingOSSettingsService | None = None,
         artwork_base_url: str = "http://127.0.0.1:8766",
         poll_interval: float = 0.5,
         on_bridge_connected: Optional[Callable[[], None]] = None,
     ) -> None:
         self._spotify = spotify
-        self._settings = settings or ThingPlayerSettingsService()
+        self._settings = settings or ThingOSSettingsService()
         self._artwork_base_url = artwork_base_url
         self._poll_interval = poll_interval
         self._clients: Set[WebSocketServerProtocol] = set()

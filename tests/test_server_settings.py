@@ -1,14 +1,14 @@
 import subprocess
 import unittest
 
-from server.settings import BACKLIGHT_MAX_PATH, BACKLIGHT_PATH, ALS_PATH, ThingPlayerSettingsService
+from server.settings import ALS_PATH, BACKLIGHT_MAX_PATH, BACKLIGHT_PATH, ThingOSSettingsService
 
 
 def _completed(command: list[str], stdout: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(args=command, returncode=returncode, stdout=stdout, stderr="")
 
 
-class ThingPlayerSettingsServiceTests(unittest.TestCase):
+class ThingOSSettingsServiceTests(unittest.TestCase):
     def test_reads_display_and_developer_state(self) -> None:
         commands = []
 
@@ -39,7 +39,7 @@ class ThingPlayerSettingsServiceTests(unittest.TestCase):
                 return _completed(command, "")
             return _completed(command, "")
 
-        service = ThingPlayerSettingsService(
+        service = ThingOSSettingsService(
           run=runner,
           list_devices_fn=lambda: ["8550RS88QQ19"],
           ensure_reverse_fn=lambda _ports: None,
@@ -85,7 +85,7 @@ class ThingPlayerSettingsServiceTests(unittest.TestCase):
                 return _completed(command, "")
             return _completed(command, "")
 
-        service = ThingPlayerSettingsService(
+        service = ThingOSSettingsService(
           run=runner,
           list_devices_fn=lambda: ["8550RS88QQ19"],
           ensure_reverse_fn=lambda _ports: None,
@@ -98,7 +98,7 @@ class ThingPlayerSettingsServiceTests(unittest.TestCase):
 
     def test_recreates_reverse_ports_through_injected_helper(self) -> None:
         refreshed = []
-        service = ThingPlayerSettingsService(
+        service = ThingOSSettingsService(
           run=lambda command: _completed(command, ""),
           list_devices_fn=lambda: ["8550RS88QQ19"],
           ensure_reverse_fn=lambda ports: refreshed.append(tuple(ports)),

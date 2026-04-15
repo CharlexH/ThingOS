@@ -15,7 +15,7 @@ except ImportError:  # pragma: no cover
 from .adb import ensure_reverse_ports
 from .artwork_proxy import ArtworkProxyServer
 from .spotify import SpotifyController
-from .ws_server import ThingPlayerServer
+from .ws_server import ThingOSServer
 
 ICON_PATH = str(Path(__file__).resolve().parents[1] / "resources" / "icon.png")
 REVERSE_PORTS = ("8765", "8766")
@@ -52,13 +52,13 @@ def _setup_reverse_ports_async(delay: float = 2.0) -> None:
     threading.Thread(target=_do, daemon=True).start()
 
 
-class ThingPlayerMenubarApp:
+class ThingOSMenubarApp:
     def __init__(self) -> None:
         self._server_running = False
         self._spotify_status = "unknown"
         self._bridge_connected = False
         self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._server: Optional[ThingPlayerServer] = None
+        self._server: Optional[ThingOSServer] = None
         self._artwork_server: Optional[ArtworkProxyServer] = None
         self._spotify = SpotifyController()
 
@@ -75,7 +75,7 @@ class ThingPlayerMenubarApp:
             pass
 
         icon = ICON_PATH if os.path.exists(ICON_PATH) else None
-        app = rumps.App("ThingPlayer", icon=icon, template=True)
+        app = rumps.App("ThingOS", icon=icon, template=True)
 
         self._status_item = rumps.MenuItem("Starting...")
         self._status_item.set_callback(None)
@@ -138,7 +138,7 @@ class ThingPlayerMenubarApp:
         except Exception:
             pass
 
-        self._server = ThingPlayerServer(
+        self._server = ThingOSServer(
             self._spotify,
             on_bridge_connected=self._on_bridge_connected,
         )
@@ -179,7 +179,7 @@ class ThingPlayerMenubarApp:
 
 
 def main() -> None:
-    ThingPlayerMenubarApp().run()
+    ThingOSMenubarApp().run()
 
 
 if __name__ == "__main__":
