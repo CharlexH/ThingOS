@@ -1,4 +1,5 @@
 import type {
+  MagiEvent,
   MagiModelType,
   MagiStage,
   MagiStageId,
@@ -62,4 +63,107 @@ export function magiTogglePause(state: MagiState): MagiState {
   }
   const pausedFor = Date.now() - state.pausedAtMs;
   return { ...state, pausedAtMs: 0, runStartedAtMs: state.runStartedAtMs + pausedFor };
+}
+
+const STAGE_ORDER: readonly MagiStageId[] = ["planning", "execution", "evaluation"] as const;
+const RETRY_CAP = 2;   // §3.5 — 3rd rejection (retryCount would become 3) → INTERVENTION
+
+function clamp01(n: number): number {
+  if (n < 0) return 0;
+  if (n > 1) return 1;
+  return n;
+}
+
+function updateStage(state: MagiState, id: MagiStageId, patch: Partial<MagiStage>): MagiState {
+  return { ...state, stages: { ...state.stages, [id]: { ...state.stages[id], ...patch } } };
+}
+
+export function magiApplyEvent(state: MagiState, event: MagiEvent): MagiState {
+  switch (event.kind) {
+    case "HEALTH":
+      return { ...state, health: event.health };
+
+    case "HALT": {
+      const active = state.activeStage;
+      if (!active) return { ...state, global: "HALTED" };
+      return {
+        ...updateStage(state, active, { verdict: "NONE" }),
+        global: "HALTED"
+      };
+    }
+
+    case "STAGE_ENTER": {
+      return updateStage(state, event.stage, {
+        status: "ACTIVE",
+        progress: 0,
+        verdict: "NONE",
+        source: event.source
+      });
+    }
+
+    case "STAGE_UPDATE": {
+      if (event.stage !== state.activeStage) return state;
+      const stage = state.stages[event.stage];
+      const next: Partial<MagiStage> = {};
+      if (event.patch.progressDelta !== undefined) {
+        next.progress = clamp01(stage.progress + event.patch.progressDelta);
+      }
+      if (event.patch.handoffDelta !== undefined) {
+        next.handoff = stage.handoff + event.patch.handoffDelta;
+      }
+      if (event.patch.confidence !== undefined) {
+        next.confidence = event.patch.confidence;
+      }
+      if (event.patch.sourceSet !== undefined) {
+        next.source = event.patch.sourceSet;
+      }
+      if (event.patch.summaryAppend !== undefined) {
+        const summary = [...stage.summary, event.patch.summaryAppend];
+        next.summary = summary.length > 4 ? summary.slice(summary.length - 4) : summary;
+      }
+      return updateStage(state, event.stage, next);
+    }
+
+    case "STAGE_VERDICT": {
+      const stamped = updateStage(state, event.stage, {
+        status: "STAMPED",
+        verdict: "承認",
+        progress: 1
+      });
+      const idx = STAGE_ORDER.indexOf(event.stage);
+      if (idx < STAGE_ORDER.length - 1) {
+        const nextId = STAGE_ORDER[idx + 1];
+        return {
+          ...updateStage(stamped, nextId, { status: "ACTIVE", progress: 0, verdict: "NONE" }),
+          activeStage: nextId
+        };
+      }
+      // evaluation stamped 承認 → DONE
+      return { ...stamped, global: "DONE", activeStage: null };
+    }
+
+    case "EVAL_REJECT": {
+      const retryNext = state.retryCount + 1;
+      const stamped = updateStage(state, "evaluation", {
+        status: "STAMPED",
+        verdict: "否定",
+        progress: 1,
+        rejectionReason: event.reason
+      });
+
+      if (event.severity === "HIGH" || retryNext > RETRY_CAP) {
+        return { ...stamped, global: "INTERVENTION", retryCount: retryNext };
+      }
+      // MEDIUM within retry budget → REWORK loop
+      const reopened = updateStage(stamped, event.upstream, {
+        status: "ACTIVE",
+        progress: 0,
+        verdict: "NONE"
+      });
+      return { ...reopened, global: "REWORK", retryCount: retryNext, activeStage: event.upstream };
+    }
+
+    default:
+      return state;
+  }
 }
