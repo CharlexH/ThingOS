@@ -1,3 +1,4 @@
+import { pickTranscript } from "./transcripts";
 import type {
   MagiEvent,
   MagiModelType,
@@ -166,4 +167,37 @@ export function magiApplyEvent(state: MagiState, event: MagiEvent): MagiState {
     default:
       return state;
   }
+}
+
+export function magiVoiceOpen(state: MagiState): MagiState {
+  const transcript = pickTranscript(state.voice.cursor);
+  return {
+    ...state,
+    voice: { open: true, transcript, typedChars: 0, cursor: state.voice.cursor + 1 }
+  };
+}
+
+export function magiVoiceTick(state: MagiState, charsDelta: number): MagiState {
+  if (!state.voice.open) return state;
+  const max = state.voice.transcript.length;
+  const next = Math.min(max, state.voice.typedChars + charsDelta);
+  if (next === state.voice.typedChars) return state;
+  return { ...state, voice: { ...state.voice, typedChars: next } };
+}
+
+export function magiVoiceCancel(state: MagiState): MagiState {
+  if (!state.voice.open) return state;
+  return { ...state, voice: { ...state.voice, open: false, typedChars: 0 } };
+}
+
+export function magiVoiceCommit(state: MagiState): MagiState {
+  if (!state.voice.open) return state;
+  const closed: MagiState = { ...state, voice: { ...state.voice, open: false, typedChars: 0 } };
+  if (!state.activeStage) return closed;
+  const line = `VOICE: "${state.voice.transcript}"`;
+  return magiApplyEvent(closed, {
+    kind: "STAGE_UPDATE",
+    stage: state.activeStage,
+    patch: { summaryAppend: line }
+  });
 }

@@ -7,7 +7,11 @@ import {
   magiInitial,
   magiStart,
   magiToggleType,
-  magiTogglePause
+  magiTogglePause,
+  magiVoiceCancel,
+  magiVoiceCommit,
+  magiVoiceOpen,
+  magiVoiceTick
 } from "./state";
 import type { MagiStageId } from "./types";
 
@@ -225,5 +229,54 @@ describe("magiApplyEvent — HEALTH", () => {
     const b = magiApplyEvent(a, { kind: "HEALTH", health: "DEGRADED" });
     expect(b.health).toBe("DEGRADED");
     expect(b.global).toBe(a.global);
+  });
+});
+
+describe("voice overlay reducers", () => {
+  it("magiVoiceOpen populates transcript from cursor, advances cursor, zeros typedChars", () => {
+    const a = magiInitial();
+    const b = magiVoiceOpen(a);
+    expect(b.voice.open).toBe(true);
+    expect(b.voice.typedChars).toBe(0);
+    expect(b.voice.transcript.length).toBeGreaterThan(0);
+    expect(b.voice.cursor).toBe(1);
+
+    const c = magiVoiceOpen(b);
+    expect(c.voice.transcript).not.toBe(b.voice.transcript);
+    expect(c.voice.cursor).toBe(2);
+  });
+
+  it("magiVoiceTick reveals characters over time, capped at transcript length", () => {
+    const a = magiVoiceOpen(magiInitial());
+    const b = magiVoiceTick(a, 8);       // 8 chars revealed
+    expect(b.voice.typedChars).toBe(8);
+    const done = magiVoiceTick(b, 10_000);
+    expect(done.voice.typedChars).toBe(done.voice.transcript.length);
+  });
+
+  it("magiVoiceCancel closes overlay without touching active-stage summary", () => {
+    vi.spyOn(Date, "now").mockReturnValue(1000);
+    let s = magiStart(magiInitial());
+    s = magiVoiceOpen(s);
+    const closed = magiVoiceCancel(s);
+    expect(closed.voice.open).toBe(false);
+    expect(closed.stages.planning.summary).toEqual([]);
+  });
+
+  it("magiVoiceCommit closes overlay and appends VOICE line to active stage summary", () => {
+    vi.spyOn(Date, "now").mockReturnValue(1000);
+    let s = magiStart(magiInitial());
+    s = magiVoiceOpen(s);
+    const transcript = s.voice.transcript;
+    const committed = magiVoiceCommit(s);
+    expect(committed.voice.open).toBe(false);
+    expect(committed.stages.planning.summary).toEqual([`VOICE: "${transcript}"`]);
+  });
+
+  it("magiVoiceCommit with no active stage closes overlay but appends nothing", () => {
+    const s = magiVoiceOpen(magiInitial()); // IDLE — no active stage
+    const c = magiVoiceCommit(s);
+    expect(c.voice.open).toBe(false);
+    expect(c.stages.planning.summary).toEqual([]);
   });
 });
