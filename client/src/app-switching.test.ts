@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import { mapHardwareButtonToApp } from "./app-switching";
 
 describe("mapHardwareButtonToApp", () => {
-  it("routes preset1 to spotify", () => {
-    expect(mapHardwareButtonToApp("preset1")).toBe("spotify");
+  it("routes preset1 to home", () => {
+    expect(mapHardwareButtonToApp("preset1")).toBe("home");
   });
 
-  it("routes preset2 to home and preset3 to magi", () => {
-    expect(mapHardwareButtonToApp("preset2")).toBe("home");
+  it("routes preset2 to spotify and preset3 to magi", () => {
+    expect(mapHardwareButtonToApp("preset2")).toBe("spotify");
     expect(mapHardwareButtonToApp("preset3")).toBe("magi");
   });
 

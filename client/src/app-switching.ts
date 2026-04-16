@@ -2,10 +2,10 @@ import type { AppId } from "./types";
 
 export function mapHardwareButtonToApp(button: string): AppId | null {
   if (button === "preset1") {
-    return "spotify";
+    return "home";
   }
   if (button === "preset2") {
-    return "home";
+    return "spotify";
   }
   if (button === "preset3") {
     return "magi";

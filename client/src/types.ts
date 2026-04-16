@@ -32,15 +32,23 @@ export interface PlaybackDelta {
 
 export type AppId = "spotify" | "home" | "magi" | "settings";
 
-export type HomeMode = "clock" | "timer_set" | "timer_running" | "timer_paused" | "timer_done";
+export type HomeMode = "clock" | "set" | "running" | "paused" | "done" | "flashing";
+export type HomePhase = "none" | "work" | "rest";
+export type HomeSettingTarget = "none" | "work" | "rest";
+export type HomeFlashKind = "none" | "countdown_done" | "rest_done";
 
 export interface HomeTimerState {
   mode: HomeMode;
-  setSeconds: number;
+  phase: HomePhase;
+  settingTarget: HomeSettingTarget;
+  workSeconds: number;
+  restSeconds: number;
   remainingMs: number;
   anchorMs: number;
   anchorRemaining: number;
   flashUntilMs: number;
+  flashKind: HomeFlashKind;
+  nextPhaseAfterFlash: HomePhase;
 }
 
 export type SettingsSectionId = "home" | "bluetooth" | "display" | "device" | "developer";
@@ -87,6 +95,14 @@ export interface SettingsResultPayload {
   message: string;
 }
 
+export interface PreferencesStatePayload {
+  pomodoroEnabled: boolean;
+}
+
+export interface PreferencesState {
+  pomodoroEnabled: boolean;
+}
+
 export interface SettingsActionStatus {
   kind: "idle" | "loading" | "success" | "error";
   action: string;
@@ -114,6 +130,7 @@ export interface PlaybackStoreState {
   activeApp: AppId;
   clockAnchor: ClockAnchor;
   homeTimer: HomeTimerState;
+  preferences: PreferencesState;
   settings: SettingsViewState;
   magi: MagiState;
 }
@@ -121,12 +138,16 @@ export interface PlaybackStoreState {
 export interface PlaybackStore {
   applyState(snapshot: PlaybackSnapshot): void;
   applyDelta(delta: PlaybackDelta): void;
+  applyPreferences(snapshot: PreferencesStatePayload): void;
   applySettingsState(snapshot: SettingsStatePayload): void;
   applySettingsResult(result: SettingsResultPayload): void;
   beginSettingsAction(action: string): void;
   switchApp(app: AppId): void;
   switchSettingsSection(section: SettingsSectionId): void;
   timerAdjust(deltaSec: number): void;
+  timerPrimaryAction(nowMs?: number): void;
+  timerBack(): void;
+  timerTick(nowMs?: number): void;
   timerStart(): void;
   timerPause(): void;
   timerResume(): void;

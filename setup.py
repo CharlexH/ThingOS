@@ -8,7 +8,6 @@ DATA_FILES = [
         [
             "resources/icon.png",
             "resources/icon@2x.png",
-            "resources/spotify_icon.png",
         ],
     ),
 ]

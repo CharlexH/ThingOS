@@ -31,7 +31,7 @@ describe("createPlaybackStore", () => {
       serverTimeMs: 2000
     });
 
-    expect(store.getState().activeApp).toBe("spotify");
+    expect(store.getState().activeApp).toBe("home");
     expect(store.getState().clockAnchor).toEqual({
       serverTimeMs: 2000,
       receivedAtMs: 5000,
@@ -132,5 +132,200 @@ describe("createPlaybackStore — MAGI slice", () => {
     store.magiDispatch((s) => ({ ...s, global: "RUNNING" as const }));
     expect(store.getState().magi.global).toBe("RUNNING");
     expect(seen).toContain("RUNNING");
+  });
+});
+
+describe("createPlaybackStore — pomodoro timer", () => {
+  it("tracks pomodoro preferences in the store", () => {
+    const store = createPlaybackStore();
+    const applyPreferences = (store as any).applyPreferences;
+
+    expect(typeof applyPreferences).toBe("function");
+    if (typeof applyPreferences !== "function") {
+      return;
+    }
+
+    applyPreferences({ pomodoroEnabled: true });
+
+    expect((store.getState() as any).preferences).toEqual({
+      pomodoroEnabled: true
+    });
+  });
+
+  it("opens rest setup after work setup when pomodoro is enabled", () => {
+    const store = createPlaybackStore();
+    const applyPreferences = (store as any).applyPreferences;
+    const primaryAction = (store as any).timerPrimaryAction;
+
+    expect(typeof applyPreferences).toBe("function");
+    expect(typeof primaryAction).toBe("function");
+    if (typeof applyPreferences !== "function" || typeof primaryAction !== "function") {
+      return;
+    }
+
+    applyPreferences({ pomodoroEnabled: true });
+    store.timerAdjust(60);
+    primaryAction();
+
+    expect((store.getState().homeTimer as any)).toMatchObject({
+      mode: "set",
+      settingTarget: "rest",
+      workSeconds: 60,
+      restSeconds: 0,
+      remainingMs: 0
+    });
+  });
+
+  it("returns from empty rest setup back to work setup", () => {
+    const store = createPlaybackStore();
+    const applyPreferences = (store as any).applyPreferences;
+    const primaryAction = (store as any).timerPrimaryAction;
+
+    expect(typeof applyPreferences).toBe("function");
+    expect(typeof primaryAction).toBe("function");
+    if (typeof applyPreferences !== "function" || typeof primaryAction !== "function") {
+      return;
+    }
+
+    applyPreferences({ pomodoroEnabled: true });
+    store.timerAdjust(60);
+    primaryAction();
+    store.timerAdjust(-60);
+
+    expect((store.getState().homeTimer as any)).toMatchObject({
+      mode: "set",
+      settingTarget: "work",
+      workSeconds: 60,
+      restSeconds: 0,
+      remainingMs: 60000
+    });
+  });
+
+  it("loops from work into rest and back into work when rest is configured", () => {
+    const store = createPlaybackStore();
+    const applyPreferences = (store as any).applyPreferences;
+    const primaryAction = (store as any).timerPrimaryAction;
+    const timerTick = (store as any).timerTick;
+
+    expect(typeof applyPreferences).toBe("function");
+    expect(typeof primaryAction).toBe("function");
+    expect(typeof timerTick).toBe("function");
+    if (
+      typeof applyPreferences !== "function" ||
+      typeof primaryAction !== "function" ||
+      typeof timerTick !== "function"
+    ) {
+      return;
+    }
+
+    applyPreferences({ pomodoroEnabled: true });
+    store.timerAdjust(120);
+    primaryAction();
+    store.timerAdjust(60);
+    primaryAction(1000);
+
+    expect((store.getState().homeTimer as any)).toMatchObject({
+      mode: "running",
+      phase: "work",
+      workSeconds: 120,
+      restSeconds: 60,
+      remainingMs: 120000
+    });
+
+    timerTick(118000);
+    expect((store.getState().homeTimer as any)).toMatchObject({
+      mode: "running",
+      phase: "work",
+      remainingMs: 3000,
+      flashKind: "countdown_done"
+    });
+
+    timerTick(121000);
+    expect((store.getState().homeTimer as any)).toMatchObject({
+      mode: "running",
+      phase: "rest",
+      remainingMs: 60000,
+      flashKind: "none"
+    });
+
+    timerTick(178000);
+    expect((store.getState().homeTimer as any)).toMatchObject({
+      mode: "running",
+      phase: "rest",
+      remainingMs: 3000,
+      flashKind: "rest_done",
+    });
+
+    timerTick(181000);
+    expect((store.getState().homeTimer as any)).toMatchObject({
+      mode: "running",
+      phase: "work",
+      remainingMs: 120000,
+      flashKind: "none"
+    });
+  });
+
+  it("falls back to a one-shot countdown when rest is zero", () => {
+    const store = createPlaybackStore();
+    const primaryAction = (store as any).timerPrimaryAction;
+    const timerTick = (store as any).timerTick;
+
+    expect(typeof primaryAction).toBe("function");
+    expect(typeof timerTick).toBe("function");
+    if (typeof primaryAction !== "function" || typeof timerTick !== "function") {
+      return;
+    }
+
+    store.timerAdjust(60);
+    primaryAction(1000);
+    timerTick(58000);
+
+    expect((store.getState().homeTimer as any)).toMatchObject({
+      mode: "running",
+      phase: "work",
+      remainingMs: 3000,
+      flashKind: "countdown_done",
+      nextPhaseAfterFlash: "none"
+    });
+
+    timerTick(61000);
+    expect((store.getState().homeTimer as any)).toMatchObject({
+      mode: "done",
+      workSeconds: 60,
+      restSeconds: 0
+    });
+  });
+
+  it("backs out of a running pomodoro to work setup while preserving durations", () => {
+    const store = createPlaybackStore();
+    const applyPreferences = (store as any).applyPreferences;
+    const primaryAction = (store as any).timerPrimaryAction;
+    const timerBack = (store as any).timerBack;
+
+    expect(typeof applyPreferences).toBe("function");
+    expect(typeof primaryAction).toBe("function");
+    expect(typeof timerBack).toBe("function");
+    if (
+      typeof applyPreferences !== "function" ||
+      typeof primaryAction !== "function" ||
+      typeof timerBack !== "function"
+    ) {
+      return;
+    }
+
+    applyPreferences({ pomodoroEnabled: true });
+    store.timerAdjust(180);
+    primaryAction();
+    store.timerAdjust(60);
+    primaryAction(1000);
+    timerBack();
+
+    expect((store.getState().homeTimer as any)).toMatchObject({
+      mode: "set",
+      settingTarget: "work",
+      workSeconds: 180,
+      restSeconds: 60,
+      remainingMs: 180000
+    });
   });
 });

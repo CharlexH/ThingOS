@@ -71,7 +71,7 @@ describe("createRenderer", () => {
 
     expect(overlay).not.toBeNull();
     expect(overlay.classList.contains("preset-hint-overlay-visible")).toBe(true);
-    expect(items.map((item) => item.textContent)).toEqual(["Spotify", "Home", "MAGI", "Settings"]);
+    expect(items.map((item) => item.textContent)).toEqual(["Home", "Spotify", "MAGI", "Settings"]);
     expect(items[2].classList.contains("preset-hint-item-active")).toBe(true);
     expect(items[0].classList.contains("preset-hint-item-active")).toBe(false);
 

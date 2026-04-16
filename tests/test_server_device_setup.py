@@ -1,7 +1,15 @@
 import subprocess
 import unittest
+from unittest.mock import patch
 
-from server.device_setup import WEBAPP_DIR, ensure_bind_mount, needs_bind_mount, restart_chromium
+import server.device_setup as device_setup
+from server.device_setup import (
+    WEBAPP_DIR,
+    clear_chromium_cache,
+    ensure_bind_mount,
+    needs_bind_mount,
+    restart_chromium,
+)
 
 
 def _completed(args: list[str], stdout: str = "") -> subprocess.CompletedProcess[str]:
@@ -86,6 +94,45 @@ class RestartChromiumTests(unittest.TestCase):
                 ["supervisorctl", "start", "chromium"],
             ],
         )
+
+
+class ClearChromiumCacheTests(unittest.TestCase):
+    def test_removes_cached_chromium_assets_before_restart(self) -> None:
+        commands = []
+
+        def runner(command: list[str]) -> subprocess.CompletedProcess[str]:
+            commands.append(command)
+            return _completed(command)
+
+        clear_chromium_cache(run=runner)
+
+        self.assertEqual(
+            commands,
+            [[
+                "rm",
+                "-rf",
+                "/var/cache/chrome_storage/Default/Cache",
+                "/var/cache/chrome_storage/Default/Code Cache",
+                "/var/cache/chrome_storage/Default/GPUCache",
+                "/var/cache/chrome_storage/ShaderCache/GPUCache",
+                "/var/cache/cache/chrome_storage/Default/Cache",
+                "/var/cache/cache/chrome_storage/Default/Code Cache",
+            ]],
+        )
+
+
+class MainTests(unittest.TestCase):
+    def test_main_clears_cache_before_restarting_chromium(self) -> None:
+        steps: list[str] = []
+
+        with patch.object(device_setup, "ensure_bind_mount", side_effect=lambda: steps.append("mount")), patch.object(
+            device_setup,
+            "clear_chromium_cache",
+            side_effect=lambda: steps.append("cache"),
+        ), patch.object(device_setup, "restart_chromium", side_effect=lambda: steps.append("restart")):
+            self.assertEqual(device_setup.main(), 0)
+
+        self.assertEqual(steps, ["mount", "cache", "restart"])
 
 
 if __name__ == "__main__":

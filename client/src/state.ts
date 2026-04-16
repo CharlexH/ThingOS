@@ -1,11 +1,14 @@
 import type {
   AppId,
   ClockAnchor,
+  HomePhase,
   HomeTimerState,
   PlaybackDelta,
   PlaybackSnapshot,
   PlaybackStore,
-  PlaybackStoreState
+  PlaybackStoreState,
+  PreferencesState,
+  PreferencesStatePayload
 } from "./types";
 import type {
   SettingsActionStatus,
@@ -33,18 +36,153 @@ const EMPTY_SNAPSHOT: PlaybackSnapshot = {
   ts: 0
 };
 
+const MAX_TIMER_SECONDS = 5999;
+const FLASH_DURATION_MS = 3000;
+
+function clampTimerSeconds(seconds: number): number {
+  return Math.max(0, Math.min(MAX_TIMER_SECONDS, seconds));
+}
+
+function createClockTimer(): HomeTimerState {
+  return {
+    mode: "clock",
+    phase: "none",
+    settingTarget: "none",
+    workSeconds: 0,
+    restSeconds: 0,
+    remainingMs: 0,
+    anchorMs: 0,
+    anchorRemaining: 0,
+    flashUntilMs: 0,
+    flashKind: "none",
+    nextPhaseAfterFlash: "none"
+  };
+}
+
+function createSetTimer(
+  workSeconds: number,
+  restSeconds: number,
+  settingTarget: "work" | "rest"
+): HomeTimerState {
+  const clampedWork = clampTimerSeconds(workSeconds);
+  const clampedRest = clampTimerSeconds(restSeconds);
+  const displaySeconds = settingTarget === "work" ? clampedWork : clampedRest;
+
+  return {
+    mode: "set",
+    phase: "none",
+    settingTarget: settingTarget,
+    workSeconds: clampedWork,
+    restSeconds: clampedRest,
+    remainingMs: displaySeconds * 1000,
+    anchorMs: 0,
+    anchorRemaining: 0,
+    flashUntilMs: 0,
+    flashKind: "none",
+    nextPhaseAfterFlash: "none"
+  };
+}
+
+function createRunningTimer(
+  workSeconds: number,
+  restSeconds: number,
+  phase: "work" | "rest",
+  nowMs: number,
+  remainingMs: number
+): HomeTimerState {
+  const clampedRemaining = Math.max(0, remainingMs);
+  const flashKind =
+    clampedRemaining > 0 && clampedRemaining <= FLASH_DURATION_MS
+      ? (phase === "rest" ? "rest_done" : "countdown_done")
+      : "none";
+
+  return {
+    mode: "running",
+    phase: phase,
+    settingTarget: "none",
+    workSeconds: clampTimerSeconds(workSeconds),
+    restSeconds: clampTimerSeconds(restSeconds),
+    remainingMs: clampedRemaining,
+    anchorMs: nowMs,
+    anchorRemaining: clampedRemaining,
+    flashUntilMs: flashKind === "none" ? 0 : nowMs + clampedRemaining,
+    flashKind: flashKind,
+    nextPhaseAfterFlash: "none"
+  };
+}
+
+function createPausedTimer(
+  workSeconds: number,
+  restSeconds: number,
+  phase: "work" | "rest",
+  remainingMs: number
+): HomeTimerState {
+  return {
+    mode: "paused",
+    phase: phase,
+    settingTarget: "none",
+    workSeconds: clampTimerSeconds(workSeconds),
+    restSeconds: clampTimerSeconds(restSeconds),
+    remainingMs: Math.max(0, remainingMs),
+    anchorMs: 0,
+    anchorRemaining: 0,
+    flashUntilMs: 0,
+    flashKind: "none",
+    nextPhaseAfterFlash: "none"
+  };
+}
+
+function createFlashingTimer(
+  workSeconds: number,
+  restSeconds: number,
+  phase: "work" | "rest",
+  flashKind: "countdown_done" | "rest_done",
+  nextPhaseAfterFlash: HomePhase,
+  nowMs: number
+): HomeTimerState {
+  return {
+    mode: "flashing",
+    phase: phase,
+    settingTarget: "none",
+    workSeconds: clampTimerSeconds(workSeconds),
+    restSeconds: clampTimerSeconds(restSeconds),
+    remainingMs: 0,
+    anchorMs: 0,
+    anchorRemaining: 0,
+    flashUntilMs: nowMs + FLASH_DURATION_MS,
+    flashKind: flashKind,
+    nextPhaseAfterFlash: nextPhaseAfterFlash
+  };
+}
+
+function createDoneTimer(workSeconds: number, restSeconds: number): HomeTimerState {
+  return {
+    mode: "done",
+    phase: "work",
+    settingTarget: "none",
+    workSeconds: clampTimerSeconds(workSeconds),
+    restSeconds: clampTimerSeconds(restSeconds),
+    remainingMs: 0,
+    anchorMs: 0,
+    anchorRemaining: 0,
+    flashUntilMs: 0,
+    flashKind: "none",
+    nextPhaseAfterFlash: "none"
+  };
+}
+
+function getRunningRemaining(timer: HomeTimerState, nowMs: number): number {
+  return Math.max(0, timer.anchorRemaining - Math.max(0, nowMs - timer.anchorMs));
+}
+
 export function createPlaybackStore(): PlaybackStore {
   let current = EMPTY_SNAPSHOT;
   let display = EMPTY_SNAPSHOT;
   let progressAnchorTs = 0;
-  let activeApp: AppId = "spotify";
-  let homeTimer: HomeTimerState = {
-    mode: "clock",
-    setSeconds: 0,
-    remainingMs: 0,
-    anchorMs: 0,
-    anchorRemaining: 0,
-    flashUntilMs: 0
+  let activeApp: AppId = "home";
+  let homeTimer: HomeTimerState = createClockTimer();
+  let preferences: PreferencesState = {
+    pomodoroEnabled: false
   };
   let clockAnchor: ClockAnchor = {
     serverTimeMs: 0,
@@ -62,7 +200,7 @@ export function createPlaybackStore(): PlaybackStore {
     }
   };
   let magi: MagiState = magiInitial();
-  var listeners: Array<(state: PlaybackStoreState) => void> = [];
+  let listeners: Array<(state: PlaybackStoreState) => void> = [];
 
   function snapshot(): PlaybackStoreState {
     return {
@@ -73,16 +211,161 @@ export function createPlaybackStore(): PlaybackStore {
       activeApp,
       clockAnchor,
       homeTimer,
+      preferences,
       settings,
       magi
     };
   }
 
   function publish(): void {
-    var nextState = snapshot();
+    const nextState = snapshot();
     listeners.forEach(function (listener) {
       listener(nextState);
     });
+  }
+
+  function enterWorkSetup(): void {
+    homeTimer = createSetTimer(homeTimer.workSeconds, homeTimer.restSeconds, "work");
+  }
+
+  function enterClock(): void {
+    homeTimer = createClockTimer();
+  }
+
+  function startRunningPhase(phase: "work" | "rest", nowMs: number, remainingMs: number): void {
+    homeTimer = createRunningTimer(homeTimer.workSeconds, homeTimer.restSeconds, phase, nowMs, remainingMs);
+  }
+
+  function handlePrimaryAction(nowMs: number): void {
+    if (homeTimer.mode === "set") {
+      if (homeTimer.settingTarget === "work") {
+        if (homeTimer.workSeconds <= 0) {
+          return;
+        }
+        if (preferences.pomodoroEnabled) {
+          homeTimer = createSetTimer(homeTimer.workSeconds, homeTimer.restSeconds, "rest");
+          publish();
+          return;
+        }
+        startRunningPhase("work", nowMs, homeTimer.workSeconds * 1000);
+        publish();
+        return;
+      }
+
+      if (homeTimer.workSeconds <= 0) {
+        return;
+      }
+      startRunningPhase("work", nowMs, homeTimer.workSeconds * 1000);
+      publish();
+      return;
+    }
+
+    if (homeTimer.mode === "running") {
+      homeTimer = createPausedTimer(
+        homeTimer.workSeconds,
+        homeTimer.restSeconds,
+        homeTimer.phase === "rest" ? "rest" : "work",
+        getRunningRemaining(homeTimer, nowMs)
+      );
+      publish();
+      return;
+    }
+
+    if (homeTimer.mode === "paused") {
+      startRunningPhase(
+        homeTimer.phase === "rest" ? "rest" : "work",
+        nowMs,
+        homeTimer.remainingMs
+      );
+      publish();
+      return;
+    }
+
+    if (homeTimer.mode === "done" && homeTimer.workSeconds > 0) {
+      startRunningPhase("work", nowMs, homeTimer.workSeconds * 1000);
+      publish();
+    }
+  }
+
+  function handleBack(): void {
+    if (homeTimer.mode === "clock") {
+      return;
+    }
+
+    if (homeTimer.mode === "set") {
+      if (homeTimer.settingTarget === "rest") {
+        enterWorkSetup();
+      } else {
+        enterClock();
+      }
+      publish();
+      return;
+    }
+
+    if (
+      homeTimer.mode === "running" ||
+      homeTimer.mode === "paused" ||
+      homeTimer.mode === "flashing"
+    ) {
+      enterWorkSetup();
+      publish();
+      return;
+    }
+
+    if (homeTimer.mode === "done") {
+      enterClock();
+      publish();
+    }
+  }
+
+  function handleTick(nowMs: number): void {
+    if (homeTimer.mode === "running") {
+      const remaining = getRunningRemaining(homeTimer, nowMs);
+
+      if (remaining > 0) {
+        if (remaining !== homeTimer.remainingMs) {
+          const flashKind =
+            remaining <= FLASH_DURATION_MS
+              ? (homeTimer.phase === "rest" ? "rest_done" : "countdown_done")
+              : "none";
+          homeTimer = {
+            ...homeTimer,
+            remainingMs: remaining,
+            flashUntilMs: flashKind === "none" ? 0 : homeTimer.anchorMs + homeTimer.anchorRemaining,
+            flashKind: flashKind
+          };
+          publish();
+        }
+        return;
+      }
+
+      if (homeTimer.phase === "rest") {
+        startRunningPhase("work", nowMs, homeTimer.workSeconds * 1000);
+        publish();
+        return;
+      }
+
+      if (homeTimer.restSeconds > 0) {
+        startRunningPhase("rest", nowMs, homeTimer.restSeconds * 1000);
+        publish();
+        return;
+      }
+
+      homeTimer = createDoneTimer(homeTimer.workSeconds, homeTimer.restSeconds);
+      publish();
+      return;
+    }
+
+    if (homeTimer.mode === "flashing" && nowMs >= homeTimer.flashUntilMs) {
+      if (homeTimer.nextPhaseAfterFlash === "work") {
+        startRunningPhase("work", nowMs, homeTimer.workSeconds * 1000);
+      } else if (homeTimer.nextPhaseAfterFlash === "rest") {
+        startRunningPhase("rest", nowMs, homeTimer.restSeconds * 1000);
+      } else {
+        homeTimer = createDoneTimer(homeTimer.workSeconds, homeTimer.restSeconds);
+      }
+      publish();
+    }
   }
 
   return {
@@ -115,6 +398,12 @@ export function createPlaybackStore(): PlaybackStore {
           ts: delta.ts
         };
       }
+      publish();
+    },
+    applyPreferences(snapshot: PreferencesStatePayload) {
+      preferences = {
+        pomodoroEnabled: Boolean(snapshot.pomodoroEnabled)
+      };
       publish();
     },
     applySettingsState(snapshot: SettingsStatePayload) {
@@ -161,111 +450,88 @@ export function createPlaybackStore(): PlaybackStore {
       publish();
     },
     timerAdjust(deltaSec: number): void {
-      var mode = homeTimer.mode;
-      if (mode === "timer_running" || mode === "timer_paused") {
+      if (
+        homeTimer.mode === "running" ||
+        homeTimer.mode === "paused" ||
+        homeTimer.mode === "flashing"
+      ) {
         return;
       }
-      if (mode === "clock") {
+
+      if (homeTimer.mode === "clock") {
         if (deltaSec <= 0) {
           return;
         }
-        homeTimer = {
-          ...homeTimer,
-          mode: "timer_set",
-          setSeconds: deltaSec,
-          remainingMs: deltaSec * 1000
-        };
+        homeTimer = createSetTimer(clampTimerSeconds(deltaSec), 0, "work");
         publish();
         return;
       }
-      // timer_set or timer_done
-      var next = homeTimer.setSeconds + deltaSec;
-      if (next <= 0) {
-        if (deltaSec < 0 && homeTimer.setSeconds === 0) {
-          // left past 00:00 → back to clock
-          homeTimer = { ...homeTimer, mode: "clock", setSeconds: 0, remainingMs: 0 };
+
+      if (homeTimer.mode === "done") {
+        homeTimer = createSetTimer(homeTimer.workSeconds, homeTimer.restSeconds, "work");
+      }
+
+      if (homeTimer.mode !== "set") {
+        return;
+      }
+
+      if (homeTimer.settingTarget === "rest") {
+        const nextRest = homeTimer.restSeconds + deltaSec;
+        if (nextRest < 0) {
+          enterWorkSetup();
           publish();
           return;
         }
-        next = 0;
+        homeTimer = createSetTimer(homeTimer.workSeconds, nextRest, "rest");
+        publish();
+        return;
       }
-      if (next > 5999) {
-        next = 5999; // 99:59
+
+      let nextWork = homeTimer.workSeconds + deltaSec;
+      if (nextWork <= 0) {
+        if (deltaSec < 0 && homeTimer.workSeconds === 0) {
+          enterClock();
+          publish();
+          return;
+        }
+        nextWork = 0;
       }
-      var newMode = next === 0 ? homeTimer.mode : "timer_set";
-      homeTimer = {
-        ...homeTimer,
-        mode: newMode,
-        setSeconds: next,
-        remainingMs: next * 1000
-      };
+
+      homeTimer = createSetTimer(nextWork, homeTimer.restSeconds, "work");
       publish();
+    },
+    timerPrimaryAction(nowMs?: number): void {
+      handlePrimaryAction(nowMs ?? Date.now());
+    },
+    timerBack(): void {
+      handleBack();
+    },
+    timerTick(nowMs?: number): void {
+      handleTick(nowMs ?? Date.now());
     },
     timerStart(): void {
-      var now = Date.now();
-      var remaining = homeTimer.mode === "timer_done"
-        ? homeTimer.setSeconds * 1000
-        : homeTimer.remainingMs;
-      homeTimer = {
-        ...homeTimer,
-        mode: "timer_running",
-        remainingMs: remaining,
-        anchorMs: now,
-        anchorRemaining: remaining,
-        flashUntilMs: 0
-      };
-      publish();
+      handlePrimaryAction(Date.now());
     },
     timerPause(): void {
-      var now = Date.now();
-      var elapsed = now - homeTimer.anchorMs;
-      var remaining = Math.max(0, homeTimer.anchorRemaining - elapsed);
-      homeTimer = {
-        ...homeTimer,
-        mode: "timer_paused",
-        remainingMs: remaining
-      };
-      publish();
+      if (homeTimer.mode === "running") {
+        handlePrimaryAction(Date.now());
+      }
     },
     timerResume(): void {
-      var now = Date.now();
-      homeTimer = {
-        ...homeTimer,
-        mode: "timer_running",
-        anchorMs: now,
-        anchorRemaining: homeTimer.remainingMs
-      };
-      publish();
+      if (homeTimer.mode === "paused") {
+        handlePrimaryAction(Date.now());
+      }
     },
     timerDone(): void {
-      homeTimer = {
-        ...homeTimer,
-        mode: "timer_done",
-        remainingMs: 0,
-        flashUntilMs: Date.now() + 3000
-      };
+      homeTimer = createDoneTimer(homeTimer.workSeconds, homeTimer.restSeconds);
       publish();
     },
     timerReset(): void {
-      homeTimer = {
-        ...homeTimer,
-        mode: "timer_set",
-        remainingMs: homeTimer.setSeconds * 1000,
-        anchorMs: 0,
-        anchorRemaining: 0,
-        flashUntilMs: 0
-      };
+      enterWorkSetup();
       publish();
     },
     timerExit(): void {
-      homeTimer = {
-        mode: "clock",
-        setSeconds: 0,
-        remainingMs: 0,
-        anchorMs: 0,
-        anchorRemaining: 0,
-        flashUntilMs: 0
-      };
+      enterClock();
       publish();
     },
     magiDispatch(fn: (s: MagiState) => MagiState): void {

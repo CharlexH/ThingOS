@@ -46,6 +46,17 @@ export function createHomeClockElements(documentRef: Document): HomeClockElement
 var DAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 var MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
+var SUBTITLE_MAP: Record<string, string> = {
+  "set:work": "COUNTDOWN",
+  "set:rest": "REST",
+  "running:work": "WORKING",
+  "running:rest": "RESTING",
+  "paused:work": "PAUSED",
+  "paused:rest": "PAUSED",
+  "done": "TIME\u2019S UP",
+  "flashing": "TIME\u2019S UP"
+};
+
 export function formatClockParts(anchor: ClockAnchor, nowMs: number): { hours: string; minutes: string; day: string; num: string; month: string } {
   if (!anchor.serverTimeMs) {
     return { hours: "--", minutes: "--", day: "", num: "", month: "" };
@@ -81,20 +92,71 @@ function formatTimerMs(ms: number): { mm: string; ss: string } {
   };
 }
 
-function getTimerRemaining(timer: HomeTimerState, nowMs: number): number {
-  if (timer.mode === "timer_running") {
-    var elapsed = nowMs - timer.anchorMs;
-    return Math.max(0, timer.anchorRemaining - elapsed);
+function getRunningRemaining(timer: HomeTimerState, nowMs: number): number {
+  return Math.max(0, timer.anchorRemaining - Math.max(0, nowMs - timer.anchorMs));
+}
+
+function getDisplayMs(timer: HomeTimerState, nowMs: number): number {
+  if (timer.mode === "flashing") {
+    return 0;
+  }
+  if (timer.mode === "done") {
+    return 0;
+  }
+  if (timer.mode === "set") {
+    return (timer.settingTarget === "rest" ? timer.restSeconds : timer.workSeconds) * 1000;
+  }
+  if (timer.mode === "running") {
+    return getRunningRemaining(timer, nowMs);
   }
   return timer.remainingMs;
 }
 
-var SUBTITLE_MAP: Record<string, string> = {
-  "timer_set": "COUNTDOWN",
-  "timer_running": "COUNTDOWN",
-  "timer_paused": "PAUSED",
-  "timer_done": "TIME\u2019S UP"
-};
+function getSubtitle(timer: HomeTimerState): string {
+  if (timer.mode === "done") {
+    return SUBTITLE_MAP.done;
+  }
+  if (timer.mode === "flashing") {
+    return SUBTITLE_MAP.flashing;
+  }
+  if (timer.mode === "set") {
+    return SUBTITLE_MAP["set:" + timer.settingTarget];
+  }
+  return SUBTITLE_MAP[timer.mode + ":" + timer.phase] || "";
+}
+
+function applyThemeClasses(elements: HomeClockElements, timer: HomeTimerState): void {
+  var isResting =
+    (timer.mode === "running" || timer.mode === "paused") &&
+    timer.phase === "rest";
+  var isCountdownSetup = timer.mode === "set" && timer.settingTarget === "work";
+  var isRestSetup = timer.mode === "set" && timer.settingTarget === "rest";
+  var isWorking = timer.mode === "running" && timer.phase === "work";
+
+  elements.root.classList.toggle("home-screen-resting", isResting);
+  elements.date.classList.toggle("home-clock-date-countdown", isCountdownSetup);
+  elements.date.classList.toggle("home-clock-date-rest", isRestSetup);
+  elements.date.classList.toggle("home-clock-date-working", isWorking);
+}
+
+function applyFlashClasses(elements: HomeClockElements, timer: HomeTimerState, nowMs: number): void {
+  elements.root.classList.remove("home-clock-flash-white");
+  elements.root.classList.remove("home-clock-flash-green");
+
+  if (timer.flashKind === "none" || timer.flashUntilMs <= nowMs) {
+    return;
+  }
+
+  var phase = Math.floor((timer.flashUntilMs - nowMs) / 250) % 2;
+  if (timer.flashKind === "rest_done") {
+    elements.root.classList.add(phase === 0 ? "home-clock-flash-green" : "home-clock-flash-white");
+    return;
+  }
+
+  if (phase === 0) {
+    elements.root.classList.add("home-clock-flash-white");
+  }
+}
 
 export function renderHomeClock(
   elements: HomeClockElements,
@@ -103,17 +165,10 @@ export function renderHomeClock(
 ): void {
   var now = Date.now();
 
-  // Flash effect
-  var isFlashing = timer.flashUntilMs > now;
-  if (isFlashing) {
-    var phase = Math.floor((timer.flashUntilMs - now) / 250) % 2;
-    elements.root.classList.toggle("home-clock-flash-white", phase === 0);
-  } else {
-    elements.root.classList.remove("home-clock-flash-white");
-  }
+  applyThemeClasses(elements, timer);
+  applyFlashClasses(elements, timer, now);
 
   if (timer.mode === "clock") {
-    // Clock mode
     elements.colon.classList.add("home-clock-colon-blink");
     var parts = formatClockParts(anchor, now);
 
@@ -130,18 +185,9 @@ export function renderHomeClock(
     return;
   }
 
-  // Timer modes
-  elements.colon.classList.toggle("home-clock-colon-blink", timer.mode === "timer_running");
+  elements.colon.classList.toggle("home-clock-colon-blink", timer.mode === "running");
 
-  var remaining: number;
-  if (isFlashing) {
-    remaining = 0;
-  } else if (timer.mode === "timer_done") {
-    remaining = timer.setSeconds * 1000;
-  } else {
-    remaining = getTimerRemaining(timer, now);
-  }
-
+  var remaining = getDisplayMs(timer, now);
   var t = formatTimerMs(remaining);
 
   if (elements.hours.textContent !== t.mm) {
@@ -151,7 +197,7 @@ export function renderHomeClock(
     elements.minutes.textContent = t.ss;
   }
 
-  var subtitle = isFlashing ? "TIME\u2019S UP" : (SUBTITLE_MAP[timer.mode] || "");
+  var subtitle = getSubtitle(timer);
   if (elements.date.textContent !== subtitle) {
     elements.date.textContent = subtitle;
   }

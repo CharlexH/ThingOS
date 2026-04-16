@@ -2,6 +2,7 @@ import type {
   PlaybackDelta,
   PlaybackSnapshot,
   PlaybackStore,
+  PreferencesStatePayload,
   SettingsResultPayload,
   SettingsStatePayload
 } from "./types";
@@ -10,7 +11,13 @@ export type ButtonHandler = (button: string) => void;
 
 export interface IncomingMessage {
   type: string;
-  data: PlaybackSnapshot | PlaybackDelta | { button: string } | SettingsStatePayload | SettingsResultPayload;
+  data:
+    | PlaybackSnapshot
+    | PlaybackDelta
+    | { button: string }
+    | PreferencesStatePayload
+    | SettingsStatePayload
+    | SettingsResultPayload;
 }
 
 export function applyIncomingMessage(
@@ -24,6 +31,8 @@ export function applyIncomingMessage(
     store.applyDelta(message.data as PlaybackDelta);
   } else if (message.type === "settings_state") {
     store.applySettingsState(message.data as SettingsStatePayload);
+  } else if (message.type === "preferences_state") {
+    store.applyPreferences(message.data as PreferencesStatePayload);
   } else if (message.type === "settings_result") {
     store.applySettingsResult(message.data as SettingsResultPayload);
   } else if (message.type === "button" && onButton) {

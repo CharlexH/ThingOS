@@ -135,4 +135,19 @@ describe("applyIncomingMessage", () => {
       message: "Chromium restarted"
     });
   });
+
+  it("applies preferences state messages to the store", () => {
+    const store = createPlaybackStore();
+
+    applyIncomingMessage(store, {
+      type: "preferences_state",
+      data: {
+        pomodoroEnabled: true
+      }
+    } as any);
+
+    expect((store.getState() as any).preferences).toEqual({
+      pomodoroEnabled: true
+    });
+  });
 });

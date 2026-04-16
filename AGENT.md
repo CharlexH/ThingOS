@@ -4,11 +4,12 @@ This file is the handoff document for any future agent working in this repo.
 
 ## What This Project Is
 
-ThingOS turns a Spotify Car Thing into a compact console with a Spotify player, a Pomodoro timer, and a MAGI-style harness surface.
+ThingOS turns a Spotify Car Thing into a compact console with a Home clock / Pomodoro page, a Spotify player, and a MAGI-style harness surface.
 
 Current high-level behavior:
-- `preset1` switches to the Spotify page.
-- `preset2`, `preset3` switch to the Home page (clock + countdown timer).
+- `preset1` switches to the Home page (clock + Pomodoro timer).
+- `preset2` switches to the Spotify page.
+- `preset3` switches to the MAGI page.
 - `preset4` switches to the Settings page.
 - `knob_press` (Enter) is context-sensitive: play/pause on Spotify, timer start/pause/resume on Home.
 - `back` (Escape) is context-sensitive: timer reset/exit on Home, navigate back on Settings.
@@ -66,7 +67,7 @@ Note: command-line mode requires manual `adb reverse` setup.
 There are four separate moving parts:
 
 1. The device browser loads static files from `/usr/share/qt-superbird-app/webapp`.
-2. `server/device_setup.py` bind-mounts `/var/lib/thingplayer` over that system webapp path and restarts Chromium.
+2. `server/device_setup.py` ensures the device webapp path is writable, clears Chromium cache, and restarts Chromium.
 3. A local Mac process serves:
    - WebSocket state on `127.0.0.1:8765`
    - Artwork proxy on `127.0.0.1:8766`
@@ -108,6 +109,7 @@ Important: `deploy.sh` only:
 - builds `client/dist`
 - pushes the built assets to `/var/lib/thingplayer`
 - reruns device setup
+- clears Chromium's persistent cache before Chromium restarts
 
 It does **not** restart `python -m server.main`.
 
@@ -256,31 +258,61 @@ python3 -m unittest tests.test_server_spotify tests.test_server_ws_server tests.
 
 If you touch repeat-command behavior, you must reconcile `tests/test_server_commands.py` with the actual implementation.
 
+### 11. Device Chromium cache can make a successful deploy look like a rollback
+
+This already happened in production.
+
+Symptoms:
+- `adb push` succeeds
+- `/var/lib/thingplayer` and `/usr/share/qt-superbird-app/webapp` both contain the new files
+- after reconnect or browser restart, the device still shows the old UI
+
+Root cause:
+- the device browser loads `file:///usr/share/qt-superbird-app/webapp/index.html`
+- that page references fixed asset names: `./assets/app.css` and `./assets/app.js`
+- Chromium persists cache under `/var/cache/chrome_storage` and `/var/cache/cache/chrome_storage`
+- restarting Chromium without clearing those caches can reuse the old JS/CSS bundle
+
+Current fix:
+- `server/device_setup.py` clears Chromium cache before restarting Chromium
+
+If this regresses:
+- verify device files on disk
+- verify DevTools page URL on port `2222`
+- inspect the live DOM via `Runtime.evaluate`
+- assume cache before assuming deploy failure
+
 ## Home Timer Feature
 
-The Home page has a countdown timer accessible via the rotary knob.
+The Home page is a clock by default and exposes a Pomodoro-capable timer via the rotary knob.
 
 ### State Machine
 
 ```
-clock → (rotary right) → timer_set → (knob press) → timer_running → (reaches 00:00) → timer_done
-                                         ↑ (knob press)    ↓ (knob press)                    ↓ (knob press)
-                                         +←← timer_paused ←+                                 → timer_running (restart)
+clock → (rotary right) → set/work → (knob press with pomodoro off) → running/work → done
+                         set/work → (knob press with pomodoro on)  → set/rest → running/work → running/rest → running/work ...
+                                                           ↑ knob press pauses current phase; back exits to set/work
 ```
 
 ### Interaction
 
 | State | Display | Rotary | Knob press | Back |
 |-------|---------|--------|------------|------|
-| clock | 14:03 / TUE·7·APR | right → timer_set(01:00) | — | — |
-| timer_set | 03:00 / COUNTDOWN | ±1 min (left past 00:00 → clock) | start timer | exit → clock |
-| timer_running | 02:47 / COUNTDOWN | — | pause | reset → timer_set |
-| timer_paused | 01:23 / PAUSED | — | resume | reset → timer_set |
-| timer_done | 03:00 / TIME'S UP | right → timer_set | restart | exit → clock |
+| clock | 14:03 / TUE·7·APR | right → `set/work(01:00)` | — | — |
+| set/work | 03:00 / COUNTDOWN | ±1 min (left past `00:00` → clock) | start work, or enter `set/rest` if Pomodoro enabled | exit → clock |
+| set/rest | 05:00 / REST | ±1 min (left past `00:00` → `set/work`) | start work | back → `set/work` |
+| running/work | 02:47 / WORKING | — | pause | exit → `set/work` |
+| running/rest | 00:56 / RESTING | — | pause | exit → `set/work` |
+| paused | current phase / PAUSED | — | resume | exit → `set/work` |
+| done | 00:00 / TIME'S UP | right → `set/work` | restart work | exit → clock |
 
 ### Flash Effect
 
-When countdown reaches 00:00, the screen flashes black/white for 3 seconds (250ms per phase). During flash: displays "00:00" / "TIME'S UP". After flash: shows original set time / "TIME'S UP".
+- `work` phase flashes black/white during the **final 3 seconds**
+- `rest` phase flashes green/white during the **final 3 seconds**
+- flash is an overlay on the running phase, not a blocking post-complete state
+- the phase switches immediately at `00:00`
+- one-shot countdowns enter `done` directly at `00:00`
 
 ### Key Files
 
@@ -288,7 +320,7 @@ When countdown reaches 00:00, the screen flashes black/white for 3 seconds (250m
 - `client/src/state.ts` — timer state methods (timerAdjust, timerStart, timerPause, timerResume, timerDone, timerReset, timerExit)
 - `client/src/ui/home-clock.ts` — rendering logic for all timer modes + flash effect
 - `client/src/input.ts` — keydown Enter routes to `handleKnobPress`, Escape routes to `handleBackButton`, wheel routes to `adjustTimer`
-- `client/src/ui/renderer.ts` — 250ms interval checks for timer completion (anchorRemaining - elapsed ≤ 0 → store.timerDone())
+- `client/src/ui/renderer.ts` — 250ms interval checks for timer progression and phase transitions
 
 ## Current UI/Behavior Assumptions
 
@@ -418,6 +450,29 @@ If you are changing:
   - restart `python -m server.main`
   - redeploy frontend
   - inspect live websocket payload from `8765`
+
+## Project Submit Checklist
+
+Before creating a GitHub commit or release for this repo, do these in order:
+
+1. Clean obvious junk from the worktree:
+   - remove `node_modules/`
+   - remove temp screenshots like `tmp-*.png`
+   - make sure generated build output is intentional
+2. Run focused frontend verification:
+   - `cd client && npm test -- src/state.test.ts src/ui/home-clock.test.ts src/ui/renderer.test.ts src/input.test.ts src/ws-client.test.ts`
+3. Run focused backend verification:
+   - `python3 -m unittest tests.test_server_device_setup tests.test_server_ws_server tests.test_server_agent tests.test_agent_menu -v`
+4. If server-side code changed:
+   - rebuild and reinstall `/Applications/ThingOS.app`
+   - relaunch the menubar app
+5. Deploy to the device:
+   - `bash scripts/deploy.sh`
+6. Verify the live device, not just files on disk:
+   - `adb forward tcp:2222 tcp:2222`
+   - inspect `http://127.0.0.1:2222/json/list`
+   - confirm the running page is `file:///usr/share/qt-superbird-app/webapp/index.html`
+7. Only then stage, commit, push, and create any release artifact such as a zip
 
 ## If You Need To Recover The Previous Device UI
 

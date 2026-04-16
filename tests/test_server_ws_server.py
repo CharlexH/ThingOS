@@ -58,6 +58,20 @@ class _FakeSettings:
         return None
 
 
+class _FakePreferences:
+    def __init__(self, enabled: bool = False) -> None:
+        self.enabled = enabled
+
+    def get_pomodoro_enabled(self) -> bool:
+        return self.enabled
+
+    def set_pomodoro_enabled(self, enabled: bool) -> None:
+        self.enabled = enabled
+
+    def to_client_payload(self):
+        return {"pomodoroEnabled": self.enabled}
+
+
 class ThingOSServerButtonTests(unittest.IsolatedAsyncioTestCase):
     async def test_preset_buttons_only_broadcast_events(self) -> None:
         server = ThingOSServer(_FakeSpotify())
@@ -132,6 +146,45 @@ class ThingOSServerSettingsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result_payload["type"], "settings_result")
         self.assertEqual(result_payload["data"]["action"], "restart_chromium")
         self.assertEqual(state_payload["type"], "settings_state")
+
+
+class ThingOSServerPreferencesTests(unittest.IsolatedAsyncioTestCase):
+    async def test_handle_client_sends_preferences_after_state(self) -> None:
+        server = ThingOSServer(_FakeSpotify(), settings=_FakeSettings(), preferences=_FakePreferences(True))
+
+        class _FakeWebSocket:
+            def __init__(self):
+                self.messages = []
+
+            async def send(self, message: str) -> None:
+                self.messages.append(json.loads(message))
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                raise StopAsyncIteration
+
+        websocket = _FakeWebSocket()
+
+        await server._handle_client(websocket)
+
+        self.assertEqual([message["type"] for message in websocket.messages], ["state", "preferences_state"])
+        self.assertEqual(websocket.messages[1]["data"], {"pomodoroEnabled": True})
+
+    async def test_set_pomodoro_enabled_persists_and_broadcasts(self) -> None:
+        preferences = _FakePreferences(False)
+        server = ThingOSServer(_FakeSpotify(), settings=_FakeSettings(), preferences=preferences)
+        server._broadcast = AsyncMock()  # type: ignore[method-assign]
+        server._loop = asyncio.get_running_loop()  # type: ignore[attr-defined]
+
+        server.set_pomodoro_enabled(True)
+        await asyncio.sleep(0)
+
+        self.assertTrue(preferences.enabled)
+        server._broadcast.assert_awaited_once_with(
+            {"type": "preferences_state", "data": {"pomodoroEnabled": True}}
+        )
 
 
 if __name__ == "__main__":

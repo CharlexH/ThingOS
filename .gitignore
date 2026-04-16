@@ -4,8 +4,10 @@ __pycache__/
 *.pyc
 *.egg-info/
 .eggs/
+node_modules/
 client/node_modules/
 client/dist/
 dist/
 build/
 tmp_*.py
+tmp-*.png

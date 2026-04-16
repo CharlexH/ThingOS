@@ -6,7 +6,7 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 try:
     import rumps
@@ -15,6 +15,7 @@ except ImportError:  # pragma: no cover
 
 from .adb import ensure_reverse_ports
 from .artwork_proxy import ArtworkProxyServer
+from .preferences import PreferencesService
 from .spotify import SpotifyController
 from .ws_server import ThingOSServer
 
@@ -63,6 +64,42 @@ def _setup_reverse_ports_async(delay: float = 2.0) -> None:
     threading.Thread(target=_do, daemon=True).start()
 
 
+class _FallbackMenuItem:
+    def __init__(self, title: str) -> None:
+        self.title = title
+        self.state = False
+        self.callback = None
+
+    def set_callback(self, callback: Callable[[object], None]) -> None:
+        self.callback = callback
+
+
+def _make_menu_item(title: str):
+    if rumps is None:
+        return _FallbackMenuItem(title)
+    return rumps.MenuItem(title)
+
+
+def _build_pomodoro_menu_item(
+    preferences: PreferencesService,
+    on_toggle: Callable[[bool], None],
+):
+    item = _make_menu_item("Pomodoro Timer")
+    item.state = preferences.get_pomodoro_enabled()
+
+    def _on_click(_sender: object) -> None:
+        next_state = not bool(item.state)
+        item.state = next_state
+        on_toggle(next_state)
+
+    item.set_callback(_on_click)
+    try:
+        setattr(item, "callback", _on_click)
+    except Exception:
+        pass
+    return item
+
+
 class ThingOSMenubarApp:
     def __init__(self) -> None:
         self._server_running = False
@@ -72,6 +109,7 @@ class ThingOSMenubarApp:
         self._server: Optional[ThingOSServer] = None
         self._artwork_server: Optional[ArtworkProxyServer] = None
         self._spotify = SpotifyController()
+        self._preferences = PreferencesService()
 
     def run(self) -> None:
         if rumps is None:
@@ -90,9 +128,12 @@ class ThingOSMenubarApp:
 
         self._status_item = rumps.MenuItem("Starting...")
         self._status_item.set_callback(None)
+        self._pomodoro_item = _build_pomodoro_menu_item(self._preferences, self._on_toggle_pomodoro)
 
         app.menu = [
             self._status_item,
+            None,
+            self._pomodoro_item,
             None,
             rumps.MenuItem("Restart Server", callback=lambda _: self._restart_server()),
             rumps.MenuItem("Reconnect ADB", callback=lambda _: self._reconnect_adb()),
@@ -151,6 +192,7 @@ class ThingOSMenubarApp:
 
         self._server = ThingOSServer(
             self._spotify,
+            preferences=self._preferences,
             on_bridge_connected=self._on_bridge_connected,
         )
         self._server_running = True
@@ -176,6 +218,11 @@ class ThingOSMenubarApp:
 
     def _reconnect_adb(self) -> None:
         _setup_reverse_ports_async()
+
+    def _on_toggle_pomodoro(self, enabled: bool) -> None:
+        self._preferences.set_pomodoro_enabled(enabled)
+        if self._server is not None:
+            self._server.set_pomodoro_enabled(enabled)
 
     def _update_status(self) -> None:
         if self._server is not None:

@@ -93,37 +93,13 @@ socket.onButton(function (button: string) {
     return;
   }
   if (button === "knob_press" && state.activeApp === "home") {
-    var mode = state.homeTimer.mode;
-    if (mode === "timer_set") {
-      store.timerStart();
-      return;
-    }
-    if (mode === "timer_running") {
-      store.timerPause();
-      return;
-    }
-    if (mode === "timer_paused") {
-      store.timerResume();
-      return;
-    }
-    if (mode === "timer_done") {
-      store.timerStart();
-      return;
-    }
+    store.timerPrimaryAction();
     return;
   }
 
   // Handle back button in Home timer modes
   if (button === "back" && state.activeApp === "home") {
-    var timerMode = state.homeTimer.mode;
-    if (timerMode === "timer_running" || timerMode === "timer_paused") {
-      store.timerReset();
-      return;
-    }
-    if (timerMode === "timer_set" || timerMode === "timer_done") {
-      store.timerExit();
-      return;
-    }
+    store.timerBack();
     return;
   }
 
@@ -181,24 +157,12 @@ bindInputHandlers(
     store.timerAdjust(deltaSec);
   },
   function (): void {
-    var mode = store.getState().homeTimer.mode;
-    if (mode === "timer_set" || mode === "timer_done") {
-      store.timerStart();
-    } else if (mode === "timer_running") {
-      store.timerPause();
-    } else if (mode === "timer_paused") {
-      store.timerResume();
-    }
+    store.timerPrimaryAction();
   },
   function (): void {
     var state = store.getState();
     if (state.activeApp === "home") {
-      var mode = state.homeTimer.mode;
-      if (mode === "timer_running" || mode === "timer_paused") {
-        store.timerReset();
-      } else if (mode === "timer_set" || mode === "timer_done") {
-        store.timerExit();
-      }
+      store.timerBack();
     } else if (state.activeApp === "settings") {
       if (state.settings.section === "home") {
         store.switchApp("home");

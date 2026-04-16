@@ -70,7 +70,7 @@ export function bindInputHandlers(
     }
     if (isHomeActive()) {
       var timerMode = getHomeTimerMode();
-      if (timerMode === "timer_running" || timerMode === "timer_paused") {
+      if (timerMode === "running" || timerMode === "paused" || timerMode === "flashing") {
         return;
       }
       var dir = delta > 0 ? 1 : -1;

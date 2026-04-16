@@ -46,7 +46,7 @@ export function createRenderer(
   var statusBadge = documentRef.createElement("div");
   var presetHintOverlay = documentRef.createElement("div");
   var presetHintButtons = ["preset1", "preset2", "preset3", "preset4"];
-  var presetHintLabels = ["Spotify", "Home", "MAGI", "Settings"];
+  var presetHintLabels = ["Home", "Spotify", "MAGI", "Settings"];
   var homeClock = createHomeClockElements(documentRef);
   var resolvedSettingsActions = settingsActions || {
     requestSettingsState: function (): void {},
@@ -130,16 +130,10 @@ export function createRenderer(
 
   timerHost.setInterval(function () {
     if (lastState.activeApp === "home") {
-      var timer = lastState.homeTimer;
-      // Check if running timer has reached 0
-      if (timer.mode === "timer_running") {
-        var elapsed = Date.now() - timer.anchorMs;
-        if (timer.anchorRemaining - elapsed <= 0) {
-          store.timerDone();
-          return;
-        }
-      }
-      renderHomeClock(homeClock, lastState.clockAnchor, timer);
+      store.timerTick();
+      var homeState = store.getState();
+      lastState = homeState;
+      renderHomeClock(homeClock, homeState.clockAnchor, homeState.homeTimer);
     }
   }, 250);
   timerHost.setInterval(function () {

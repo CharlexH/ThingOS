@@ -332,6 +332,27 @@
   animation: colon-blink 2s ease-in-out infinite;
 }
 
+.home-clock-date-countdown {
+  color: #ff5a52;
+}
+
+.home-clock-date-working {
+  color: #ff5a52;
+}
+
+.home-clock-date-rest {
+  color: #16c96b;
+}
+
+.home-screen-resting {
+  background: #16c96b;
+}
+
+.home-screen-resting .home-clock-time,
+.home-screen-resting .home-clock-date {
+  color: #fff;
+}
+
 .home-clock-flash-white {
   background: #fff;
 }
@@ -339,6 +360,15 @@
 .home-clock-flash-white .home-clock-time,
 .home-clock-flash-white .home-clock-date {
   color: #000;
+}
+
+.home-clock-flash-green {
+  background: #16c96b;
+}
+
+.home-clock-flash-green .home-clock-time,
+.home-clock-flash-green .home-clock-date {
+  color: #062611;
 }
 
 /* ============================ MAGI ============================ */

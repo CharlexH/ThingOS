@@ -10,6 +10,7 @@ import websockets
 from websockets.server import WebSocketServerProtocol
 
 from .input_bridge import InputBridge
+from .preferences import PreferencesService
 from .settings import ThingOSSettingsService
 from .spotify import SpotifyController, compute_delta, serialize_state_message
 from .types import EMPTY_STATE, PlaybackState
@@ -20,17 +21,20 @@ class ThingOSServer:
         self,
         spotify: SpotifyController,
         settings: ThingOSSettingsService | None = None,
+        preferences: PreferencesService | None = None,
         artwork_base_url: str = "http://127.0.0.1:8766",
         poll_interval: float = 0.5,
         on_bridge_connected: Optional[Callable[[], None]] = None,
     ) -> None:
         self._spotify = spotify
         self._settings = settings or ThingOSSettingsService()
+        self._preferences = preferences or PreferencesService()
         self._artwork_base_url = artwork_base_url
         self._poll_interval = poll_interval
         self._clients: Set[WebSocketServerProtocol] = set()
         self._state: PlaybackState = EMPTY_STATE
         self._poll_task: Optional[asyncio.Task[None]] = None
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._input_bridge = InputBridge(self._on_hardware_button, on_connected=on_bridge_connected)
 
     def _on_hardware_button(self, button: str, pressed: bool) -> None:
@@ -40,6 +44,7 @@ class ThingOSServer:
         asyncio.ensure_future(self._broadcast(payload))
 
     async def start(self, host: str = "127.0.0.1", port: int = 8765) -> None:
+        self._loop = asyncio.get_running_loop()
         await self._input_bridge.start()
         async with websockets.serve(self._handle_client, host, port):
             self._poll_task = asyncio.create_task(self._poll_loop())
@@ -48,6 +53,7 @@ class ThingOSServer:
     async def _handle_client(self, websocket: WebSocketServerProtocol) -> None:
         self._clients.add(websocket)
         await websocket.send(json.dumps(serialize_state_message(self._state, self._artwork_base_url)))
+        await websocket.send(json.dumps(self._serialize_preferences_message()))
         try:
             async for raw_message in websocket:
                 message = json.loads(raw_message)
@@ -127,3 +133,25 @@ class ThingOSServer:
             *[client.send(message) for client in tuple(self._clients)],
             return_exceptions=True,
         )
+
+    def _serialize_preferences_message(self) -> dict:
+        return {"type": "preferences_state", "data": self._preferences.to_client_payload()}
+
+    async def broadcast_preferences(self) -> None:
+        await self._broadcast(self._serialize_preferences_message())
+
+    def set_pomodoro_enabled(self, enabled: bool) -> None:
+        self._preferences.set_pomodoro_enabled(enabled)
+        if self._loop is None or not self._loop.is_running():
+            return
+
+        try:
+            running_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            running_loop = None
+
+        if running_loop is self._loop:
+            asyncio.create_task(self.broadcast_preferences())
+            return
+
+        asyncio.run_coroutine_threadsafe(self.broadcast_preferences(), self._loop)

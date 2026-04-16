@@ -6,6 +6,14 @@ from typing import Callable, List
 
 THINGPLAYER_DIR = "/var/lib/thingplayer"
 WEBAPP_DIR = "/usr/share/qt-superbird-app/webapp"
+CHROMIUM_CACHE_DIRS = [
+    "/var/cache/chrome_storage/Default/Cache",
+    "/var/cache/chrome_storage/Default/Code Cache",
+    "/var/cache/chrome_storage/Default/GPUCache",
+    "/var/cache/chrome_storage/ShaderCache/GPUCache",
+    "/var/cache/cache/chrome_storage/Default/Cache",
+    "/var/cache/cache/chrome_storage/Default/Code Cache",
+]
 
 Runner = Callable[[List[str]], subprocess.CompletedProcess]
 
@@ -34,12 +42,18 @@ def restart_chromium(run: Runner | None = None) -> None:
         runner(["supervisorctl", "start", "chromium"])
 
 
+def clear_chromium_cache(run: Runner | None = None) -> None:
+    runner = run or _run
+    runner(["rm", "-rf", *CHROMIUM_CACHE_DIRS])
+
+
 def _run(command: List[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, check=True, capture_output=True, text=True)
 
 
 def main() -> int:
     ensure_bind_mount()
+    clear_chromium_cache()
     restart_chromium()
     return 0
 
