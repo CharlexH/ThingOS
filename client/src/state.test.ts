@@ -117,3 +117,20 @@ describe("createPlaybackStore", () => {
     expect(store.getState().progressAnchorTs).toBe(1500);
   });
 });
+
+describe("createPlaybackStore — MAGI slice", () => {
+  it("initialises a MAGI slice in IDLE", () => {
+    const store = createPlaybackStore();
+    expect(store.getState().magi.global).toBe("IDLE");
+    expect(store.getState().magi.modelType).toBe("CLD");
+  });
+
+  it("magiDispatch notifies subscribers and produces a new slice", () => {
+    const store = createPlaybackStore();
+    const seen: string[] = [];
+    store.subscribe((s) => seen.push(s.magi.global));
+    store.magiDispatch((s) => ({ ...s, global: "RUNNING" as const }));
+    expect(store.getState().magi.global).toBe("RUNNING");
+    expect(seen).toContain("RUNNING");
+  });
+});

@@ -14,6 +14,8 @@ import type {
   SettingsViewState,
   SettingsResultPayload
 } from "./types";
+import { magiInitial } from "./magi/state";
+import type { MagiState } from "./magi/types";
 
 const EMPTY_SNAPSHOT: PlaybackSnapshot = {
   status: "idle",
@@ -59,6 +61,7 @@ export function createPlaybackStore(): PlaybackStore {
       message: ""
     }
   };
+  let magi: MagiState = magiInitial();
   var listeners: Array<(state: PlaybackStoreState) => void> = [];
 
   function snapshot(): PlaybackStoreState {
@@ -70,7 +73,8 @@ export function createPlaybackStore(): PlaybackStore {
       activeApp,
       clockAnchor,
       homeTimer,
-      settings
+      settings,
+      magi
     };
   }
 
@@ -262,6 +266,10 @@ export function createPlaybackStore(): PlaybackStore {
         anchorRemaining: 0,
         flashUntilMs: 0
       };
+      publish();
+    },
+    magiDispatch(fn: (s: MagiState) => MagiState): void {
+      magi = fn(magi);
       publish();
     },
     getState(): PlaybackStoreState {

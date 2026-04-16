@@ -1,3 +1,5 @@
+import type { MagiState } from "./magi/types";
+
 export type PlaybackStatus =
   | "ok"
   | "idle"
@@ -113,6 +115,7 @@ export interface PlaybackStoreState {
   clockAnchor: ClockAnchor;
   homeTimer: HomeTimerState;
   settings: SettingsViewState;
+  magi: MagiState;
 }
 
 export interface PlaybackStore {
@@ -130,6 +133,7 @@ export interface PlaybackStore {
   timerDone(): void;
   timerReset(): void;
   timerExit(): void;
+  magiDispatch(fn: (s: MagiState) => MagiState): void;
   getState(): PlaybackStoreState;
   subscribe(listener: (state: PlaybackStoreState) => void): () => void;
 }
