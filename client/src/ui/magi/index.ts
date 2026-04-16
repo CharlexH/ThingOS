@@ -1,5 +1,6 @@
 import type { MagiGlobalStatus, MagiState } from "../../magi/types";
 import { createHexCluster, renderHexCluster, type HexClusterElements } from "./hexagons";
+import { createIntelPanel, renderIntelPanel, type IntelPanelElements } from "./intel-panel";
 import { createTimeline, renderTimeline, type TimelineElements } from "./timeline";
 
 export interface MagiElements {
@@ -8,6 +9,7 @@ export interface MagiElements {
   hexCluster: HTMLElement;
   hexClusterImpl: HexClusterElements;
   intelPanel: HTMLElement;
+  intelPanelImpl: IntelPanelElements;
   timeline: HTMLElement;
   timelineImpl: TimelineElements;
   systemHealth: HTMLElement;
@@ -40,7 +42,9 @@ export function createMagiElements(doc: Document): MagiElements {
   const hexClusterImpl = createHexCluster(doc);
   hexClusterImpl.root.classList.add("magi-zone-hex-cluster");
   const hexCluster = hexClusterImpl.root;
-  const intelPanel = zone(doc, "magi-zone-intel-panel");
+  const intelPanelImpl = createIntelPanel(doc);
+  intelPanelImpl.root.classList.add("magi-zone-intel-panel");
+  const intelPanel = intelPanelImpl.root;
   const timelineImpl = createTimeline(doc);
   timelineImpl.root.classList.add("magi-zone-timeline");
   const timeline = timelineImpl.root;
@@ -52,7 +56,20 @@ export function createMagiElements(doc: Document): MagiElements {
   [header, statusBadge, hexCluster, intelPanel, timeline, systemHealth, modelType, voiceOverlay]
     .forEach((el) => root.appendChild(el));
 
-  return { root, header, statusBadge, hexCluster, hexClusterImpl, intelPanel, timeline, timelineImpl, systemHealth, modelType, voiceOverlay };
+  return {
+    root,
+    header,
+    statusBadge,
+    hexCluster,
+    hexClusterImpl,
+    intelPanel,
+    intelPanelImpl,
+    timeline,
+    timelineImpl,
+    systemHealth,
+    modelType,
+    voiceOverlay
+  };
 }
 
 export function renderMagi(elements: MagiElements, state: MagiState): void {
@@ -65,10 +82,8 @@ export function renderMagi(elements: MagiElements, state: MagiState): void {
   elements.modelType.textContent = `TYPE / ${state.modelType}`;
   elements.modelType.setAttribute("data-model", state.modelType);
 
-  if (state.global === "IDLE") {
-    elements.intelPanel.textContent = "PRESS KNOB TO BEGIN RUN";
-  }
   renderHexCluster(elements.hexClusterImpl, state);
+  renderIntelPanel(elements.intelPanelImpl, state);
   renderTimeline(elements.timelineImpl, state);
-  // Intel panel (non-IDLE) and voice overlay handled in Tasks 12–13.
+  // Voice overlay handled in Task 13.
 }

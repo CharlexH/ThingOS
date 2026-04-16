@@ -44,6 +44,6 @@ describe("renderMagi — simple zones", () => {
     const elements = createMagiElements(document);
     renderMagi(elements, magiInitial());
     const intel = elements.root.querySelector(".magi-zone-intel-panel") as HTMLElement;
-    expect(intel.textContent).toMatch(/press.+knob.+begin/i);
+    expect(intel.textContent).toMatch(/press\s+knob\s+to\s+begin/i);
   });
 });
