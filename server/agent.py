@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import subprocess
+import sys
 import threading
 from pathlib import Path
 from typing import Optional
@@ -17,7 +18,17 @@ from .artwork_proxy import ArtworkProxyServer
 from .spotify import SpotifyController
 from .ws_server import ThingOSServer
 
-ICON_PATH = str(Path(__file__).resolve().parents[1] / "resources" / "icon.png")
+
+def _resolve_icon_path() -> str:
+    """Locate icon.png whether running from source or a py2app bundle."""
+    # py2app sets sys.frozen; bundle resources live in Contents/Resources/
+    if getattr(sys, "frozen", False):
+        bundle_resources = Path(sys.executable).resolve().parent.parent / "Resources"
+        return str(bundle_resources / "resources" / "icon.png")
+    return str(Path(__file__).resolve().parents[1] / "resources" / "icon.png")
+
+
+ICON_PATH = _resolve_icon_path()
 REVERSE_PORTS = ("8765", "8766")
 
 
