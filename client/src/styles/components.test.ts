@@ -100,4 +100,16 @@ describe("components css", () => {
     expect(componentsCss).toContain(".settings-slider");
     expect(componentsCss).toContain(".settings-device-row");
   });
+
+  it("defines MAGI-zone selectors", () => {
+    expect(componentsCss).toMatch(/\.magi-screen\b/);
+    expect(componentsCss).toMatch(/\.magi-hex-cluster\b/);
+    expect(componentsCss).toMatch(/\.magi-hexagon\b/);
+    expect(componentsCss).toMatch(/\.magi-timeline-segment\b/);
+    expect(componentsCss).toMatch(/\.magi-segment-rework\b/);
+    expect(componentsCss).toMatch(/\.magi-intel-panel\b/);
+    expect(componentsCss).toMatch(/\.magi-voice-overlay\b/);
+    expect(componentsCss).toMatch(/\.magi-zone-status-badge\[data-status="INTERVENTION"\]/);
+    expect(componentsCss).toMatch(/--magi-progress\b/);
+  });
 });

@@ -340,3 +340,121 @@
 .home-clock-flash-white .home-clock-date {
   color: #000;
 }
+
+/* ============================ MAGI ============================ */
+
+.magi-screen {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-areas:
+    "header header header"
+    "intel  hex    status"
+    "intel  hex    model"
+    "health timeline timeline";
+  grid-template-columns: 220px 1fr 180px;
+  grid-template-rows: auto 1fr 1fr 56px;
+  background: #06080c;
+  color: #e6f2ff;
+  font-family: var(--magi-font, "NotoSansMono", monospace);
+}
+
+.magi-zone-header       { grid-area: header; padding: 6px 12px; font-size: 11px; opacity: 0.72; }
+.magi-zone-intel-panel,
+.magi-intel-panel       { grid-area: intel; padding: 12px; border-right: 1px solid #1a2230; }
+.magi-zone-hex-cluster  { grid-area: hex; display: flex; align-items: center; justify-content: center; }
+.magi-zone-status-badge { grid-area: status; padding: 8px 12px; font-size: 18px; font-weight: 700; text-align: right; }
+.magi-zone-model-type   { grid-area: model; padding: 8px 12px; text-align: right; font-size: 14px; }
+.magi-zone-system-health{ grid-area: health; padding: 12px; font-size: 12px; }
+.magi-zone-timeline,
+.magi-timeline          { grid-area: timeline; display: flex; align-items: stretch; position: relative; border-top: 1px solid #1a2230; }
+
+/* Status badge — intervention pulse (§6.5) */
+.magi-zone-status-badge[data-status="INTERVENTION"] {
+  color: #ff7a5a;
+  animation: magi-pulse 1.25s ease-in-out infinite;
+}
+.magi-zone-status-badge[data-status="HALTED"] { color: #ff7a5a; }
+.magi-zone-status-badge[data-status="DONE"]   { color: #8ef0a9; }
+.magi-zone-status-badge[data-status="REWORK"] { color: #f4c15a; }
+@keyframes magi-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+
+/* Hex cluster */
+.magi-hex-cluster { display: flex; gap: 24px; }
+.magi-hexagon {
+  --magi-progress: 0;
+  width: 128px; aspect-ratio: 1;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: conic-gradient(from -90deg, #f4c15a calc(var(--magi-progress) * 360deg), #1a2230 0);
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  opacity: 0.55;
+  transition: opacity 180ms ease;
+}
+.magi-hex-focused { opacity: 1; }
+.magi-hexagon[data-status="STAMPED"][data-verdict="承認"] {
+  background: conic-gradient(from -90deg, #8ef0a9 360deg, #1a2230 0);
+}
+.magi-hexagon[data-status="STAMPED"][data-verdict="否定"] {
+  background: conic-gradient(from -90deg, #ff7a5a 360deg, #1a2230 0);
+}
+.magi-hex-number   { font-size: 32px; font-weight: 800; }
+.magi-hex-codename { font-size: 12px; letter-spacing: 0.12em; opacity: 0.8; }
+.magi-hex-stamp    { margin-top: 6px; padding: 2px 6px; font-size: 14px; border: 2px solid currentColor; }
+
+/* Timeline */
+.magi-timeline-segment {
+  flex: 1; position: relative; border-right: 1px solid #1a2230;
+  background: linear-gradient(to right,
+    rgba(244, 193, 90, 0.6) calc(var(--magi-segment-progress, 0) * 100%),
+    rgba(26, 34, 48, 0.8) 0);
+}
+.magi-timeline-segment[data-active="true"]::after {
+  content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 6px, rgba(255,255,255,0.04) 6px 8px);
+  animation: magi-scan 1.4s linear infinite;
+}
+.magi-segment-rework {
+  background-image: repeating-linear-gradient(45deg,
+    rgba(244, 193, 90, 0.35) 0 4px, rgba(26, 34, 48, 0.4) 4px 10px);
+}
+.magi-timeline-caret {
+  position: absolute; top: -6px; width: 10px; height: 10px;
+  transform: translateX(-50%) rotate(45deg);
+  background: #f4c15a;
+  transition: left 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes magi-scan {
+  from { background-position: 0 0; }
+  to   { background-position: 8px 0; }
+}
+
+/* Intel panel */
+.magi-intel-header { font-size: 11px; letter-spacing: 0.08em; opacity: 0.85; margin-bottom: 8px; }
+.magi-intel-summary { list-style: none; padding: 0; margin: 0; font-size: 12px; }
+.magi-intel-summary-line { padding: 2px 0; border-bottom: 1px dashed rgba(255,255,255,0.06); }
+.magi-intel-rework-reason { color: #ff7a5a; font-size: 12px; margin-bottom: 6px; }
+.magi-intel-idle { opacity: 0.55; font-size: 13px; padding-top: 16px; }
+
+/* System health & model type — color-code states */
+.magi-zone-system-health[data-health="OFFLINE"]  { color: #ff7a5a; }
+.magi-zone-system-health[data-health="DEGRADED"] { color: #f4c15a; }
+.magi-zone-system-health[data-health="RELINK"]   { color: #f4c15a; }
+
+/* Voice overlay drawer */
+.magi-voice-overlay {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 40%;
+  background: rgba(6, 8, 12, 0.94);
+  border-top: 1px solid #1a2230;
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  transform: translateY(0);
+  transition: transform 200ms ease, opacity 200ms ease;
+}
+.magi-voice-overlay[hidden] { display: none; }
+.magi-voice-waveform { height: 24px; background: repeating-linear-gradient(90deg, #1a2230 0 2px, transparent 2px 6px); }
+.magi-voice-transcript { font-size: 16px; min-height: 1.4em; }
+.magi-voice-hint { font-size: 11px; opacity: 0.6; }
