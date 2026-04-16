@@ -10,6 +10,24 @@ describe("createRenderer", () => {
     document.body.innerHTML = '<div id="app"></div>';
   });
 
+  it("mounts a MAGI shell and hides it by default", () => {
+    const store = createPlaybackStore();
+    createRenderer(document, store, () => {});
+    const magi = document.querySelector(".magi-screen") as HTMLElement;
+    expect(magi).not.toBeNull();
+    expect(magi.hidden).toBe(true);
+  });
+
+  it("shows the MAGI shell when activeApp=magi and hides spotify/home/settings", () => {
+    const store = createPlaybackStore();
+    const renderer = createRenderer(document, store, () => {});
+    store.switchApp("magi");
+    renderer.render(store.getState());
+    expect((document.querySelector(".magi-screen") as HTMLElement).hidden).toBe(false);
+    expect((document.querySelector(".app-shell") as HTMLElement).hidden).toBe(true);
+    expect((document.querySelector(".home-screen") as HTMLElement).hidden).toBe(true);
+  });
+
   it("renders the home clock when the active app is home", () => {
     const now = new Date(2026, 3, 6, 13, 45, 0, 0).getTime();
     const dateNow = vi.spyOn(Date, "now").mockReturnValue(now);
@@ -53,7 +71,7 @@ describe("createRenderer", () => {
 
     expect(overlay).not.toBeNull();
     expect(overlay.classList.contains("preset-hint-overlay-visible")).toBe(true);
-    expect(items.map((item) => item.textContent)).toEqual(["Spotify", "Home", "Home", "Settings"]);
+    expect(items.map((item) => item.textContent)).toEqual(["Spotify", "Home", "MAGI", "Settings"]);
     expect(items[2].classList.contains("preset-hint-item-active")).toBe(true);
     expect(items[0].classList.contains("preset-hint-item-active")).toBe(false);
 

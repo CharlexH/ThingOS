@@ -2,6 +2,7 @@ import type { PlaybackStore, PlaybackStoreState } from "../types";
 import { createHomeClockElements, renderHomeClock } from "./home-clock";
 import { createArtworkElements, renderArtwork } from "./artwork";
 import { createBackgroundElements, renderBackground } from "./background";
+import { createMagiElements, renderMagi, type MagiElements } from "./magi";
 import { createProgressElements, syncProgressAnimation, updateProgressLabels } from "./progress";
 import {
   createSettingsElements,
@@ -45,7 +46,7 @@ export function createRenderer(
   var statusBadge = documentRef.createElement("div");
   var presetHintOverlay = documentRef.createElement("div");
   var presetHintButtons = ["preset1", "preset2", "preset3", "preset4"];
-  var presetHintLabels = ["Spotify", "Home", "Home", "Settings"];
+  var presetHintLabels = ["Spotify", "Home", "MAGI", "Settings"];
   var homeClock = createHomeClockElements(documentRef);
   var resolvedSettingsActions = settingsActions || {
     requestSettingsState: function (): void {},
@@ -122,6 +123,9 @@ export function createRenderer(
   app.appendChild(shell);
   app.appendChild(homeClock.root);
   app.appendChild(settingsScreen.root);
+  var magiScreen: MagiElements = createMagiElements(documentRef);
+  magiScreen.root.hidden = true;
+  app.appendChild(magiScreen.root);
   app.appendChild(presetHintOverlay);
 
   timerHost.setInterval(function () {
@@ -160,6 +164,11 @@ export function createRenderer(
       shell.hidden = state.activeApp !== "spotify";
       homeClock.root.hidden = state.activeApp !== "home";
       settingsScreen.root.hidden = state.activeApp !== "settings";
+      magiScreen.root.hidden = state.activeApp !== "magi";
+      if (state.activeApp === "magi") {
+        renderMagi(magiScreen, state.magi);
+        return;
+      }
       if (state.activeApp === "home") {
         renderHomeClock(homeClock, state.clockAnchor, state.homeTimer);
         return;
