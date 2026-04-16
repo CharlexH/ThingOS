@@ -31,6 +31,12 @@ export function createVolumeWheelAccumulator(
   };
 }
 
+export interface MagiInputRouter {
+  handleWheel(delta: number): void;
+  handleKnobPress(): void;
+  handleBackButton(): void;
+}
+
 export function bindInputHandlers(
   target: Window,
   sendCommand: (action: string, value?: number) => void,
@@ -43,7 +49,9 @@ export function bindInputHandlers(
   getHomeTimerMode: () => string,
   adjustTimer: (deltaSec: number) => void,
   handleKnobPress: () => void,
-  handleBackButton: () => void
+  handleBackButton: () => void,
+  isMagiActive: () => boolean,
+  magiRouter: MagiInputRouter
 ): void {
   var flushTimer = 0;
   var lastSentVolume = -1;
@@ -52,6 +60,10 @@ export function bindInputHandlers(
   target.addEventListener("wheel", function (event: WheelEvent) {
     event.preventDefault();
     var delta = event.deltaX || event.deltaY;
+    if (isMagiActive()) {
+      magiRouter.handleWheel(delta);
+      return;
+    }
     if (isSettingsActive()) {
       scrollSettings(delta);
       return;
@@ -80,6 +92,22 @@ export function bindInputHandlers(
   }, { passive: false });
 
   target.addEventListener("keydown", function (event: KeyboardEvent) {
+    if (isMagiActive()) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        magiRouter.handleBackButton();
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        magiRouter.handleKnobPress();
+        return;
+      }
+      if (event.key === "1") { event.preventDefault(); handlePresetButton("preset1"); return; }
+      if (event.key === "2") { event.preventDefault(); handlePresetButton("preset2"); return; }
+      if (event.key === "4") { event.preventDefault(); handlePresetButton("preset4"); return; }
+      return;
+    }
     if (event.key === "Escape") {
       event.preventDefault();
       handleBackButton();

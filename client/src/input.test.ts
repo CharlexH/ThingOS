@@ -2,6 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import { bindInputHandlers, createVolumeWheelAccumulator } from "./input";
 
+interface MagiRouterStub {
+  handleWheel(delta: number): void;
+  handleKnobPress(): void;
+  handleBackButton(): void;
+}
+
+const NOOP_MAGI_ROUTER: MagiRouterStub = {
+  handleWheel() {},
+  handleKnobPress() {},
+  handleBackButton() {}
+};
+
 describe("createVolumeWheelAccumulator", () => {
   it("batches wheel ticks into a single volume command", () => {
     const accumulator = createVolumeWheelAccumulator(50, 5);
@@ -57,7 +69,14 @@ describe("bindInputHandlers", () => {
       },
       () => 50,
       () => false,
-      () => {}
+      () => {},
+      () => false,
+      () => "clock",
+      () => {},
+      () => {},
+      () => {},
+      () => false,
+      NOOP_MAGI_ROUTER
     );
 
     const wheel = listeners.get("wheel");
@@ -69,7 +88,7 @@ describe("bindInputHandlers", () => {
     wheel({ deltaY: 1, preventDefault() {} });
     timers.forEach((callback) => callback());
 
-    expect(scheduledDelay).toBe(40);
+    expect(scheduledDelay).toBe(16);
     expect(previewed).toEqual([55, 60]);
     expect(sent).toEqual([["volume", 60]]);
   });
@@ -100,7 +119,14 @@ describe("bindInputHandlers", () => {
       () => {},
       () => 50,
       () => false,
-      () => {}
+      () => {},
+      () => false,
+      () => "clock",
+      () => {},
+      () => {},
+      () => {},
+      () => false,
+      NOOP_MAGI_ROUTER
     );
 
     const keydown = listeners.get("keydown");
@@ -139,7 +165,14 @@ describe("bindInputHandlers", () => {
       () => {},
       () => 50,
       () => false,
-      () => {}
+      () => {},
+      () => false,
+      () => "clock",
+      () => {},
+      () => {},
+      () => {},
+      () => false,
+      NOOP_MAGI_ROUTER
     );
 
     const keydown = listeners.get("keydown");
@@ -201,7 +234,14 @@ describe("bindInputHandlers", () => {
       () => true,
       (delta) => {
         scrolled.push(delta);
-      }
+      },
+      () => false,
+      () => "clock",
+      () => {},
+      () => {},
+      () => {},
+      () => false,
+      NOOP_MAGI_ROUTER
     );
 
     const wheel = listeners.get("wheel");
@@ -213,5 +253,95 @@ describe("bindInputHandlers", () => {
 
     expect(sent).toEqual([]);
     expect(scrolled).toEqual([32]);
+  });
+
+  it("routes wheel to the MAGI input router when MAGI is active and does not send volume", () => {
+    const sent: Array<[string, number | undefined]> = [];
+    const magiWheelCalls: number[] = [];
+    const listeners = new Map<string, (event: any) => void>();
+    const fakeWindow = {
+      addEventListener(type: string, listener: (event: any) => void) {
+        listeners.set(type, listener);
+      },
+      clearTimeout() {},
+      setTimeout() {
+        return 1;
+      }
+    } as unknown as Window;
+
+    bindInputHandlers(
+      fakeWindow,
+      (action, value) => {
+        sent.push([action, value]);
+      },
+      () => {},
+      () => {},
+      () => 50,
+      () => false,
+      () => {},
+      () => false,
+      () => "clock",
+      () => {},
+      () => {},
+      () => {},
+      () => true,
+      {
+        handleWheel(delta) {
+          magiWheelCalls.push(delta);
+        },
+        handleKnobPress() {},
+        handleBackButton() {}
+      }
+    );
+
+    const wheel = listeners.get("wheel") as (e: any) => void;
+    wheel({ deltaX: 0, deltaY: 5, preventDefault() {} });
+    expect(magiWheelCalls).toEqual([5]);
+    expect(sent).toEqual([]);
+  });
+
+  it("routes Escape to the MAGI router and not to the generic back handler when MAGI is active", () => {
+    const backHandlerCalls: number[] = [];
+    const magiBackCalls: number[] = [];
+    const listeners = new Map<string, (event: any) => void>();
+    const fakeWindow = {
+      addEventListener(type: string, listener: (event: any) => void) {
+        listeners.set(type, listener);
+      },
+      clearTimeout() {},
+      setTimeout() {
+        return 1;
+      }
+    } as unknown as Window;
+
+    bindInputHandlers(
+      fakeWindow,
+      () => {},
+      () => {},
+      () => {},
+      () => 50,
+      () => false,
+      () => {},
+      () => false,
+      () => "clock",
+      () => {},
+      () => {},
+      () => {
+        backHandlerCalls.push(1);
+      },
+      () => true,
+      {
+        handleWheel() {},
+        handleKnobPress() {},
+        handleBackButton() {
+          magiBackCalls.push(1);
+        }
+      }
+    );
+
+    const keydown = listeners.get("keydown") as (e: any) => void;
+    keydown({ key: "Escape", preventDefault() {} });
+    expect(magiBackCalls).toEqual([1]);
+    expect(backHandlerCalls).toEqual([]);
   });
 });
