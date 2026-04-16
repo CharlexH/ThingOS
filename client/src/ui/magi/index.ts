@@ -2,6 +2,7 @@ import type { MagiGlobalStatus, MagiState } from "../../magi/types";
 import { createHexCluster, renderHexCluster, type HexClusterElements } from "./hexagons";
 import { createIntelPanel, renderIntelPanel, type IntelPanelElements } from "./intel-panel";
 import { createTimeline, renderTimeline, type TimelineElements } from "./timeline";
+import { createVoiceOverlay, renderVoiceOverlay, type VoiceOverlayElements } from "./voice-overlay";
 
 export interface MagiElements {
   root: HTMLElement;
@@ -15,6 +16,7 @@ export interface MagiElements {
   systemHealth: HTMLElement;
   modelType: HTMLElement;
   voiceOverlay: HTMLElement;
+  voiceOverlayImpl: VoiceOverlayElements;
   header: HTMLElement;
 }
 
@@ -50,8 +52,8 @@ export function createMagiElements(doc: Document): MagiElements {
   const timeline = timelineImpl.root;
   const systemHealth = zone(doc, "magi-zone-system-health");
   const modelType = zone(doc, "magi-zone-model-type");
-  const voiceOverlay = zone(doc, "magi-voice-overlay");
-  voiceOverlay.hidden = true;
+  const voiceOverlayImpl = createVoiceOverlay(doc);
+  const voiceOverlay = voiceOverlayImpl.root;
 
   [header, statusBadge, hexCluster, intelPanel, timeline, systemHealth, modelType, voiceOverlay]
     .forEach((el) => root.appendChild(el));
@@ -68,7 +70,8 @@ export function createMagiElements(doc: Document): MagiElements {
     timelineImpl,
     systemHealth,
     modelType,
-    voiceOverlay
+    voiceOverlay,
+    voiceOverlayImpl
   };
 }
 
@@ -85,5 +88,5 @@ export function renderMagi(elements: MagiElements, state: MagiState): void {
   renderHexCluster(elements.hexClusterImpl, state);
   renderIntelPanel(elements.intelPanelImpl, state);
   renderTimeline(elements.timelineImpl, state);
-  // Voice overlay handled in Task 13.
+  renderVoiceOverlay(elements.voiceOverlayImpl, state.voice);
 }
