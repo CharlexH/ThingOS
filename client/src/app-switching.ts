@@ -4,8 +4,11 @@ export function mapHardwareButtonToApp(button: string): AppId | null {
   if (button === "preset1") {
     return "spotify";
   }
-  if (button === "preset2" || button === "preset3") {
+  if (button === "preset2") {
     return "home";
+  }
+  if (button === "preset3") {
+    return "magi";
   }
   if (button === "preset4") {
     return "settings";

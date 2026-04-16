@@ -7,9 +7,9 @@ describe("mapHardwareButtonToApp", () => {
     expect(mapHardwareButtonToApp("preset1")).toBe("spotify");
   });
 
-  it("routes preset2 through preset4 to home", () => {
+  it("routes preset2 to home and preset3 to magi", () => {
     expect(mapHardwareButtonToApp("preset2")).toBe("home");
-    expect(mapHardwareButtonToApp("preset3")).toBe("home");
+    expect(mapHardwareButtonToApp("preset3")).toBe("magi");
   });
 
   it("routes preset4 to settings", () => {

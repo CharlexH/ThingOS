@@ -28,7 +28,7 @@ export interface PlaybackDelta {
   ts: number;
 }
 
-export type AppId = "spotify" | "home" | "settings";
+export type AppId = "spotify" | "home" | "magi" | "settings";
 
 export type HomeMode = "clock" | "timer_set" | "timer_running" | "timer_paused" | "timer_done";
 
