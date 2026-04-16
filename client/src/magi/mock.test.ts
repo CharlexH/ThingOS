@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { advanceMock, MOCK_HAPPY_PATH_DURATION_MS } from "./mock";
+import { advanceMock, advanceMockCursor, MOCK_HAPPY_PATH_DURATION_MS } from "./mock";
 import { assertMagiInvariants } from "./invariants";
 import { magiInitial, magiStart } from "./state";
 
@@ -52,5 +52,15 @@ describe("advanceMock — halted branch", () => {
     const b = advanceMock(a, 0, 120_000, "halted");
     expect(b.global).toBe("HALTED");
     expect(b.stages.planning.verdict).toBe("NONE");
+  });
+});
+
+describe("advanceMock — cursor-based", () => {
+  it("returns a new cursor so callers can avoid replaying events", () => {
+    const a = magiStart(magiInitial());
+    const first = advanceMockCursor(a, 0, 30_000, "happy", 0);
+    expect(first.cursor).toBeGreaterThan(0);
+    const second = advanceMockCursor(first.state, 0, 60_000, "happy", first.cursor);
+    expect(second.state.stages.planning.verdict).toBe("承認");
   });
 });

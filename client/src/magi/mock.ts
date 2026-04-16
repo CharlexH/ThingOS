@@ -102,3 +102,26 @@ export function advanceMock(
   }
   return next;
 }
+
+export interface MockAdvanceResult {
+  state: MagiState;
+  cursor: number;
+}
+
+export function advanceMockCursor(
+  state: MagiState,
+  startMs: number,
+  nowMs: number,
+  branch: MockBranch,
+  cursor: number
+): MockAdvanceResult {
+  const elapsed = Math.max(0, nowMs - startMs);
+  const schedule = SCHEDULES[branch];
+  let next = state;
+  let c = cursor;
+  while (c < schedule.length && schedule[c].atMs <= elapsed) {
+    next = magiApplyEvent(next, schedule[c].event);
+    c += 1;
+  }
+  return { state: next, cursor: c };
+}
