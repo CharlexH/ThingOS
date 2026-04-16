@@ -1,5 +1,6 @@
 import type { MagiGlobalStatus, MagiState } from "../../magi/types";
 import { createHexCluster, renderHexCluster, type HexClusterElements } from "./hexagons";
+import { createTimeline, renderTimeline, type TimelineElements } from "./timeline";
 
 export interface MagiElements {
   root: HTMLElement;
@@ -8,6 +9,7 @@ export interface MagiElements {
   hexClusterImpl: HexClusterElements;
   intelPanel: HTMLElement;
   timeline: HTMLElement;
+  timelineImpl: TimelineElements;
   systemHealth: HTMLElement;
   modelType: HTMLElement;
   voiceOverlay: HTMLElement;
@@ -39,7 +41,9 @@ export function createMagiElements(doc: Document): MagiElements {
   hexClusterImpl.root.classList.add("magi-zone-hex-cluster");
   const hexCluster = hexClusterImpl.root;
   const intelPanel = zone(doc, "magi-zone-intel-panel");
-  const timeline = zone(doc, "magi-zone-timeline");
+  const timelineImpl = createTimeline(doc);
+  timelineImpl.root.classList.add("magi-zone-timeline");
+  const timeline = timelineImpl.root;
   const systemHealth = zone(doc, "magi-zone-system-health");
   const modelType = zone(doc, "magi-zone-model-type");
   const voiceOverlay = zone(doc, "magi-voice-overlay");
@@ -48,7 +52,7 @@ export function createMagiElements(doc: Document): MagiElements {
   [header, statusBadge, hexCluster, intelPanel, timeline, systemHealth, modelType, voiceOverlay]
     .forEach((el) => root.appendChild(el));
 
-  return { root, header, statusBadge, hexCluster, hexClusterImpl, intelPanel, timeline, systemHealth, modelType, voiceOverlay };
+  return { root, header, statusBadge, hexCluster, hexClusterImpl, intelPanel, timeline, timelineImpl, systemHealth, modelType, voiceOverlay };
 }
 
 export function renderMagi(elements: MagiElements, state: MagiState): void {
@@ -65,5 +69,6 @@ export function renderMagi(elements: MagiElements, state: MagiState): void {
     elements.intelPanel.textContent = "PRESS KNOB TO BEGIN RUN";
   }
   renderHexCluster(elements.hexClusterImpl, state);
-  // Timeline, intel panel (non-IDLE), voice overlay handled in Tasks 11–13.
+  renderTimeline(elements.timelineImpl, state);
+  // Intel panel (non-IDLE) and voice overlay handled in Tasks 12–13.
 }
