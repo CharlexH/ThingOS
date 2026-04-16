@@ -345,7 +345,10 @@
 
 .magi-screen {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   display: grid;
   grid-template-areas:
     "header header header"
@@ -356,7 +359,7 @@
   grid-template-rows: auto 1fr 1fr 56px;
   background: #06080c;
   color: #e6f2ff;
-  font-family: var(--magi-font, "NotoSansMono", monospace);
+  font-family: var(--magi-font, monospace);
 }
 
 .magi-zone-header       { grid-area: header; padding: 6px 12px; font-size: 11px; opacity: 0.72; }
@@ -383,10 +386,11 @@
 }
 
 /* Hex cluster */
-.magi-hex-cluster { display: flex; gap: 24px; }
+.magi-hex-cluster { display: flex; }
+.magi-hex-cluster > .magi-hexagon + .magi-hexagon { margin-left: 24px; }
 .magi-hexagon {
   --magi-progress: 0;
-  width: 128px; aspect-ratio: 1;
+  width: 128px; height: 128px;
   clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
   background: conic-gradient(from -90deg, #f4c15a calc(var(--magi-progress) * 360deg), #1a2230 0);
   position: relative;
@@ -413,7 +417,7 @@
     rgba(26, 34, 48, 0.8) 0);
 }
 .magi-timeline-segment[data-active="true"]::after {
-  content: ""; position: absolute; inset: 0;
+  content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   background: repeating-linear-gradient(90deg, transparent 0 6px, rgba(255,255,255,0.04) 6px 8px);
   animation: magi-scan 1.4s linear infinite;
 }
@@ -450,10 +454,11 @@
   background: rgba(6, 8, 12, 0.94);
   border-top: 1px solid #1a2230;
   padding: 16px;
-  display: flex; flex-direction: column; gap: 8px;
+  display: flex; flex-direction: column;
   transform: translateY(0);
   transition: transform 200ms ease, opacity 200ms ease;
 }
+.magi-voice-overlay > * + * { margin-top: 8px; }
 .magi-voice-overlay[hidden] { display: none; }
 .magi-voice-waveform { height: 24px; background: repeating-linear-gradient(90deg, #1a2230 0 2px, transparent 2px 6px); }
 .magi-voice-transcript { font-size: 16px; min-height: 1.4em; }
