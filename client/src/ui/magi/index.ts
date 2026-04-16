@@ -1,9 +1,11 @@
 import type { MagiGlobalStatus, MagiState } from "../../magi/types";
+import { createHexCluster, renderHexCluster, type HexClusterElements } from "./hexagons";
 
 export interface MagiElements {
   root: HTMLElement;
   statusBadge: HTMLElement;
   hexCluster: HTMLElement;
+  hexClusterImpl: HexClusterElements;
   intelPanel: HTMLElement;
   timeline: HTMLElement;
   systemHealth: HTMLElement;
@@ -33,7 +35,9 @@ export function createMagiElements(doc: Document): MagiElements {
   header.textContent = "SESSION: MAGI DESIGN HARNESS 01 / ACCESS MODE: SUPERVISER";
 
   const statusBadge = zone(doc, "magi-zone-status-badge");
-  const hexCluster = zone(doc, "magi-zone-hex-cluster");
+  const hexClusterImpl = createHexCluster(doc);
+  hexClusterImpl.root.classList.add("magi-zone-hex-cluster");
+  const hexCluster = hexClusterImpl.root;
   const intelPanel = zone(doc, "magi-zone-intel-panel");
   const timeline = zone(doc, "magi-zone-timeline");
   const systemHealth = zone(doc, "magi-zone-system-health");
@@ -44,7 +48,7 @@ export function createMagiElements(doc: Document): MagiElements {
   [header, statusBadge, hexCluster, intelPanel, timeline, systemHealth, modelType, voiceOverlay]
     .forEach((el) => root.appendChild(el));
 
-  return { root, header, statusBadge, hexCluster, intelPanel, timeline, systemHealth, modelType, voiceOverlay };
+  return { root, header, statusBadge, hexCluster, hexClusterImpl, intelPanel, timeline, systemHealth, modelType, voiceOverlay };
 }
 
 export function renderMagi(elements: MagiElements, state: MagiState): void {
@@ -60,5 +64,6 @@ export function renderMagi(elements: MagiElements, state: MagiState): void {
   if (state.global === "IDLE") {
     elements.intelPanel.textContent = "PRESS KNOB TO BEGIN RUN";
   }
-  // Hex cluster, timeline, intel panel (non-IDLE) and voice overlay handled in Tasks 10–13.
+  renderHexCluster(elements.hexClusterImpl, state);
+  // Timeline, intel panel (non-IDLE), voice overlay handled in Tasks 11–13.
 }
